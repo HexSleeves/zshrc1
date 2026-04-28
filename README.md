@@ -30,16 +30,15 @@ Feel free to use it as-is, build off it, or fork it and make it entirely your ow
 
 ## Features
 
-- Use a Fish-like `conf.d` directory in `$ZDOTDIR` to load your config files
-- Use a Fish-like `functions` directory in `$ZDOTDIR` for your custom Zsh functions
-- Use a Fish-like `completions` directory in `$ZDOTDIR` for your custom Zsh completions
 - Set common Zsh environment variables
 - Enable better Zsh options than the defaults
 - Set better Zsh history options and variables
-- Colorize output of commands like `ls`, `grep`, and `man`
-- Enable built-in Zsh utilities like help, paste magic, and quote magic
-- Configure Zsh built-in completion system
-- Use built-in Zsh prompt system
+- Colorize output of commands like `ls`, `grep`, `diff`, and `man`
+- Sensible line editor setup with vi/emacs keymap selection, cursor-style hints, and common terminal key fixes
+- Useful zle widgets like `prepend-sudo`, `pound-toggle`, `edit-command-line`, paste magic, and quote magic
+- Configure Zsh built-in completion system with cached `compinit` for fast startup
+- Use built-in Zsh prompt system, with prompts loaded from a `prompts/` directory
+- Initialize Homebrew automatically when present
 
 ## Installation
 
