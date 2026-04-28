@@ -178,6 +178,9 @@ setopt complete_in_word        # Complete from both ends of a word.
 setopt path_dirs               # Perform path search even on command names with slashes.
 setopt NO_menu_complete        # Do not autoselect the first completion entry.
 
+# Lazy-load my completions
+fpath=($__zsh_config_dir/completions(-/FN) $fpath)
+
 # Display: menu select, grouped output, descriptions and warnings highlighted.
 zstyle ':completion:*' menu select
 zstyle ':completion:*' group-name ''
@@ -407,3 +410,11 @@ bindkey -M viins '^[s' prepend-sudo
 (( $+aliases[run-help] )) && unalias run-help
 autoload -Uz run-help
 alias help=run-help
+
+# Lazy-load my functions.
+ZFUNCDIR=${ZFUNCDIR:-$__zsh_config_dir/functions}
+for _zfndir in $ZFUNCDIR(-/FN) $ZFUNCDIR/*(-/FN); do
+  fpath=($_zfndir $fpath)
+  autoload -Uz $_zfndir/*~*/_*(N.:t)
+done
+unset _zfndir
