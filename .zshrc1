@@ -5,12 +5,11 @@
 # Paths
 #
 
-# Set fish-like path variables.
-typeset -gx __zsh_{config,cache,user_data}_dir
-: ${__zsh_config_dir:=${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}}
-: ${__zsh_user_data_dir:=${XDG_DATA_HOME:-$HOME/.local/share}/zsh}
-: ${__zsh_cache_dir:=${XDG_CACHE_HOME:-$HOME/.cache}/zsh}
-mkdir -p $__zsh_config_dir $__zsh_user_data_dir $__zsh_cache_dir
+# Set Zsh location vars.
+ZSH_CONFIG_DIR="${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
+ZSH_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
+ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
 
 # Ensure path arrays do not contain duplicates.
 typeset -gaU cdpath fpath mailpath path prepath
@@ -106,7 +105,7 @@ setopt NO_hist_beep            # Don't beep when accessing non-existent history.
 setopt NO_share_history        # Don't share history between all sessions.
 
 # Set the path to the default history file.
-HISTFILE="$__zsh_user_data_dir/zsh_history"
+HISTFILE="$ZSH_DATA_DIR/zsh_history"
 SAVEHIST=100000  # Set history file size.
 HISTSIZE=20000   # Set session history size.
 
@@ -179,7 +178,7 @@ setopt path_dirs               # Perform path search even on command names with 
 setopt NO_menu_complete        # Do not autoselect the first completion entry.
 
 # Lazy-load my completions
-fpath=($__zsh_config_dir/completions(-/FN) $fpath)
+fpath=($ZSH_CONFIG_DIR/completions(-/FN) $fpath)
 
 # Display: menu select, grouped output, descriptions and warnings highlighted.
 zstyle ':completion:*' menu select
@@ -224,7 +223,7 @@ function compinit-fast {
   setopt local_options extended_glob
 
   typeset -gx ZSH_COMPDUMP
-  : ${ZSH_COMPDUMP:=$__zsh_cache_dir/zcompdump}
+  : ${ZSH_COMPDUMP:=$ZSH_CACHE_DIR/zcompdump}
   mkdir -p $ZSH_COMPDUMP:h
 
   # -C skips the function check (and implies -i, the security check skip).
@@ -412,7 +411,7 @@ autoload -Uz run-help
 alias help=run-help
 
 # Lazy-load my functions.
-ZFUNCDIR=${ZFUNCDIR:-$__zsh_config_dir/functions}
+ZFUNCDIR=${ZFUNCDIR:-$ZSH_CONFIG_DIR/functions}
 for _zfndir in $ZFUNCDIR(-/FN) $ZFUNCDIR/*(-/FN); do
   fpath=($_zfndir $fpath)
   autoload -Uz $_zfndir/*~*/_*(N.:t)
