@@ -1,15 +1,25 @@
 #!/bin/zsh
-0=${(%):-%N}
+# zshrc1 - the first thing you run for modern Zsh
 
 #
-# Paths
+# Init
 #
+
+0=${(%):-%N}
 
 # Set Zsh location vars.
 ZSH_CONFIG_DIR="${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
 ZSH_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
 ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
 mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
+
+# Set any zstyles you might use for configuration.
+[[ -r ${ZDOTDIR:-$HOME}/.zstyles ]] && \
+  source ${ZDOTDIR:-$HOME}/.zstyles
+
+#
+# Paths
+#
 
 # Ensure path arrays do not contain duplicates.
 typeset -gaU cdpath fpath mailpath path prepath
