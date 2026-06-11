@@ -1,5 +1,5 @@
 #!/bin/zsh
-# zshrc1 - the first thing you run for modern Zsh
+# z1 - the first thing to run for a modern Zsh config
 
 #
 # Init
@@ -38,15 +38,17 @@ path=(
   $path
 )
 
+# repath will reset the path order
+function repath() {
+  path=($prepath $path)
+}
+
 #
 # Homebrew
 #
 
 # Setup homebrew if it exists on the system.
 if (( $+commands[brew] )); then
-  # Default to no tracking.
-  HOMEBREW_NO_ANALYTICS="${HOMEBREW_NO_ANALYTICS:-1}"
-
   # Initialize homebrew.
   source <(brew shellenv)
 
@@ -116,8 +118,8 @@ setopt NO_share_history        # Don't share history between all sessions.
 
 # Set the path to the default history file.
 HISTFILE="$ZSH_DATA_DIR/zsh_history"
-SAVEHIST=100000  # Set history file size.
-HISTSIZE=20000   # Set session history size.
+[[ "$SAVEHIST" -gt 100000 ]] || SAVEHIST=100000  # Set history file size.
+[[ "$HISTSIZE" -gt  50000 ]] || HISTSIZE=50000   # Set session history size.
 
 # Use a better history command.
 alias history='fc -li'
@@ -175,20 +177,8 @@ alias -- -='cd -'
 alias dirh='dirs -v'
 
 #
-# Completion
+# Compstyles
 #
-
-# 16.2.2 Completion
-setopt always_to_end           # Move cursor to the end of a completed word.
-setopt auto_list               # Automatically list choices on ambiguous completion.
-setopt auto_menu               # Show completion menu on a successive tab press.
-setopt auto_param_slash        # If completed parameter is a directory, add a trailing slash.
-setopt complete_in_word        # Complete from both ends of a word.
-setopt path_dirs               # Perform path search even on command names with slashes.
-setopt NO_menu_complete        # Do not autoselect the first completion entry.
-
-# Lazy-load my completions
-fpath=($ZSH_CONFIG_DIR/completions(-/FN) $fpath)
 
 # Display: menu select, grouped output, descriptions and warnings highlighted.
 zstyle ':completion:*' menu select
@@ -204,6 +194,26 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:
 # Path completion polish.
 zstyle ':completion:*' squeeze-slashes true
 zstyle ':completion:*' special-dirs ..
+
+#
+# Completion
+#
+
+# 16.2.2 Completion
+setopt always_to_end           # Move cursor to the end of a completed word.
+setopt auto_list               # Automatically list choices on ambiguous completion.
+setopt auto_menu               # Show completion menu on a successive tab press.
+setopt auto_param_slash        # If completed parameter is a directory, add a trailing slash.
+setopt complete_in_word        # Complete from both ends of a word.
+setopt path_dirs               # Perform path search even on command names with slashes.
+setopt NO_menu_complete        # Do not autoselect the first completion entry.
+setopt NO_list_beep            # Do not beep on ambiguous completion
+
+# Load modules
+zmodload zsh/complist
+
+# Lazy-load my completions
+fpath=($ZSH_CONFIG_DIR/completions(-/FN) $fpath)
 
 # Queue compdef calls until the real compinit runs at the end of .zshrc.
 typeset -gHa __compdef_queue=()
@@ -232,8 +242,9 @@ function compinit-fast {
   emulate -L zsh
   setopt local_options extended_glob
 
-  typeset -gx ZSH_COMPDUMP
-  : ${ZSH_COMPDUMP:=$ZSH_CACHE_DIR/zcompdump}
+  # Location of completion file
+  typeset -g ZSH_COMPDUMP
+  : ${ZSH_COMPDUMP:=$ZSH_CACHE_DIR/ZSH_COMPDUMP-${ZSH_VERSION}}
   mkdir -p $ZSH_COMPDUMP:h
 
   # -C skips the function check (and implies -i, the security check skip).
@@ -272,9 +283,6 @@ setopt prompt_subst            # Expand parameters in prompt variables
 # overridden by a prompt or plugin, but is a better default than Zsh's.
 PS2='${${${(%):-%_}//[^ ]}// /  }    '
 
-# Add prompts
-fpath+=("${0:a:h}"/prompts(/N))
-
 #
 # Editor
 #
@@ -288,7 +296,8 @@ setopt NO_flow_control         # Allow ^Q/^S in zsh.
 WORDCHARS='*?_-.[]~&;!#$%^(){}<>'
 
 # Optional keymap override: set ZSH_BINDKEY to vi or emacs.
-case "${ZSH_BINDKEY:-}" in
+bindkey -d
+case "${ZSH_BINDKEY:-emacs}" in
   vi)    bindkey -v ;;
   emacs) bindkey -e ;;
   *)                ;;
@@ -327,14 +336,21 @@ function update-cursor-style {
     *) [[ -z "$TMUX" ]] && return ;;
   esac
 
-  if bindkey -lL main | grep -q viins; then
+  local style
+  if [[ "${ZSH_BINDKEY:-}" == vi ]]; then
     case $KEYMAP in
-      vicmd) printf '\e[2 q' ;;
-      viins|main) printf '\e[6 q' ;;
+      vicmd)      style=block ;;
+      viins|main) style=line ;;
     esac
   else
-    printf '\e[6 q'
+    style=line
   fi
+
+  case $style in
+    block)      printf '\e[2 q' ;;
+    underscore) printf '\e[4 q' ;;
+    line)       printf '\e[6 q' ;;
+  esac
 }
 zle -N update-cursor-style
 
@@ -390,11 +406,13 @@ autoload -Uz url-quote-magic
 zle -N self-insert url-quote-magic
 
 # Common terminal key fixes: terminfo first, xterm CSI fallbacks second.
-bindkey-multiple beginning-of-line "${terminfo[khome]-}" '^[[H'
-bindkey-multiple end-of-line       "${terminfo[kend]-}"  '^[[F'
-bindkey-multiple delete-char       "${terminfo[kdch1]-}" '^[[3~'
-bindkey-multiple backward-word     '^[[1;3D' '^[[1;5D'   # Alt/Ctrl + Left
-bindkey-multiple forward-word      '^[[1;3C' '^[[1;5C'   # Alt/Ctrl + Right
+bindkey-multiple beginning-of-line                 "${terminfo[khome]-}" '^[[H'
+bindkey-multiple end-of-line                       "${terminfo[kend]-}"  '^[[F'
+bindkey-multiple delete-char                       "${terminfo[kdch1]-}" '^[[3~'
+bindkey-multiple history-beginning-search-backward "${terminfo[kcuu1]-}" '^[[A'
+bindkey-multiple history-beginning-search-forward  "${terminfo[kcud1]-}" '^[[B'
+bindkey-multiple backward-word                     '^[[1;3D' '^[[1;5D'   # Alt/Ctrl + Left
+bindkey-multiple forward-word                      '^[[1;3C' '^[[1;5C'   # Alt/Ctrl + Right
 
 # Backspace and word deletion.
 bindkey '^?' backward-delete-char
