@@ -219,20 +219,34 @@ export LESS_TERMCAP_me=${LESS_TERMCAP_me:-$reset_color}     # end bold/blink
 # Colorize commands. Build on any alias already set rather than replacing it, and
 # leave it alone if it already asks for color.
 [[ "$aliases[grep]" == *--color* ]] || alias grep="${aliases[grep]:-grep} --color=auto"
-[[ "$aliases[ls]" == *--color* ]] || alias ls="${aliases[ls]:-ls} --color=auto"
 
 # Older BSD diff has no --color, so ask before aliasing.
 if [[ "$aliases[diff]" != *--color* ]] && command diff --color /dev/null{,} &>/dev/null; then
   alias diff="${aliases[diff]:-diff} --color"
 fi
 
+# GNU ls colorizes with --color, BSD ls with -G, and passing the wrong one to an
+# old BSD ls is fatal rather than ignored. dircolors ships with GNU coreutils,
+# so having it already tells us which ls this is, for free.
 if (( $+commands[dircolors] )); then
+  [[ "$aliases[ls]" == *(--color|-G)* ]] || alias ls="${aliases[ls]:-ls} --color=auto"
   if zstyle -t ':z1:color' cache; then
     cached-eval dircolors --sh
   else
     source <(dircolors --sh)
   fi
 else
+  # -G is BSD ls's own spelling, and says nothing about a replacement someone
+  # aliased in: eza reads -G as --grid. So go by what the alias actually runs,
+  # since replacements do understand --color=auto.
+  if [[ "$aliases[ls]" != *(--color|-G)* ]]; then
+    if [[ "${${aliases[ls]:-ls}%% *}" == ls ]]; then
+      alias ls="${aliases[ls]:-ls} -G"
+    else
+      alias ls="${aliases[ls]} --color=auto"
+    fi
+  fi
+
   export CLICOLOR=${CLICOLOR:-1}
   export LSCOLORS=${LSCOLORS:-exfxcxdxbxGxDxabagacad}
 fi
