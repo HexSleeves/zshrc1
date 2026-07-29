@@ -555,3 +555,31 @@ for _zfndir in $ZFUNCDIR(-/FN) $ZFUNCDIR/*(-/FN); do
   autoload -Uz $_zfndir/*~*/_*(N.:t)
 done
 unset _zfndir
+
+#
+# Conf.d
+#
+
+# Source everything in a Fish-like conf.d directory, in name order. Files
+# starting with '~' are skipped, so you can park one without deleting it. Point
+# it somewhere else with:
+#   zstyle ':z1:confd' directory "$ZSH_CONFIG_DIR/rc.d"
+# No `emulate -L`/`local_options` here on purpose. These are config files, so
+# whatever they setopt has to outlive this function.
+function run_confd() {
+  local confd
+  zstyle -s ':z1:confd' directory confd || confd=$ZSH_CONFIG_DIR/conf.d
+
+  # Running this by hand is fine, and means the post_zshrc hook has no work left.
+  post_zshrc_hook=(${post_zshrc_hook:#run_confd})
+
+  local rc
+  local -a rcs=(${~confd}/*.{z,}sh(N-.))
+  for rc in ${(o)rcs}; do
+    [[ "${rc:t}" == '~'* ]] || source "$rc"
+  done
+}
+
+# Wait for the end of .zshrc so conf.d files can build on everything the rest of
+# the .zshrc set up. To load them at some other point, call run_confd yourself.
+add-post-zshrc-hook run_confd
