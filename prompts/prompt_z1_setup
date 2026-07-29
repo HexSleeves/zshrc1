@@ -124,8 +124,11 @@ function prompt_z1_setup {
   zstyle ':vcs_info:*' actionformats "%b%c%u%m|%F{cyan}%a%f"
   zstyle ':vcs_info:git*+set-message:*' hooks git_status
 
+  # Keymap picks the character, resolved when the prompt is expanded.
+  local pchar='${_prompt_z1_chars[${KEYMAP:-main}]:-$_prompt_z1_chars[success]}'
+
   # Define prompts.
-  PROMPT='%F{${_prompt_z1_colors[blue]}}$_prompt_z1_pwd%f %F{${_prompt_z1_colors[green]}}$_prompt_z1_chars[success]%f '
+  PROMPT='%F{${_prompt_z1_colors[blue]}}$_prompt_z1_pwd%f %F{${_prompt_z1_colors[green]}}'$pchar'%f '
   RPROMPT='${vcs_info_msg_0_}'
 }
 
@@ -134,7 +137,6 @@ function prompt_z1_preview {
   local +h RPROMPT=''
   local +h SPROMPT=''
 
-  editor-info 2> /dev/null
   prompt_preview_theme 'z1'
 }
 

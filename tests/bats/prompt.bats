@@ -73,3 +73,64 @@ teardown() { z1_teardown; }
   assert_line "rc: 0"
   assert_line "prompts in fpath: 0"
 }
+
+# The prompt character is chosen while PROMPT is expanded, so these set $KEYMAP
+# and expand it by hand, the way `zle reset-prompt` would.
+@test "vi command mode gets its own prompt character" {
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    for k in main viins vicmd emacs; do
+      KEYMAP=$k; print -r -- "$k: ${(e)PROMPT}"
+    done'
+  assert_success
+  assert_output_contains "main: %F{039}%f %F{076}❱%f"
+  assert_output_contains "viins: %F{039}%f %F{076}❱%f"
+  assert_output_contains "vicmd: %F{039}%f %F{076}❰%f"
+  assert_output_contains "emacs: %F{039}%f %F{076}❱%f"
+}
+
+# zle also reports isearch and listscroll. Looking the keymap up in the
+# character table means an unnamed one falls back rather than printing itself.
+@test "an unrecognized keymap falls back to the success character" {
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    for k in isearch listscroll nonsense ""; do
+      KEYMAP=$k; print -r -- "[$k] ${(e)PROMPT}"
+    done
+    unset KEYMAP; print -r -- "[unset] ${(e)PROMPT}"'
+  assert_success
+  refute_line "[isearch] %F{039}%f %F{076}isearch%f "
+  assert_output_contains "[isearch] %F{039}%f %F{076}❱%f"
+  assert_output_contains "[listscroll] %F{039}%f %F{076}❱%f"
+  assert_output_contains "[nonsense] %F{039}%f %F{076}❱%f"
+  assert_output_contains "[unset] %F{039}%f %F{076}❱%f"
+}
+
+@test "the vicmd character style is honored" {
+  z1_zsh 'zstyle ":z1:prompt:character" vicmd "N"
+    source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    KEYMAP=vicmd; print -r -- "vicmd: ${(e)PROMPT}"'
+  assert_success
+  assert_output_contains "vicmd: %F{039}%f %F{076}N%f"
+}
+
+@test "disabling unicode gives vi command mode an ASCII character" {
+  z1_zsh 'zstyle ":z1:prompt:unicode" disable yes
+    source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    KEYMAP=vicmd; print -r -- "vicmd: ${(e)PROMPT}"
+    KEYMAP=main;  print -r -- "main: ${(e)PROMPT}"'
+  assert_success
+  assert_output_contains "vicmd: %F{039}%f %F{076}V%f"
+  assert_output_contains "main: %F{039}%f %F{076}%%%f"
+}
+
+# prompt_z1_preview used to call editor-info, a prezto function z1 does not have.
+@test "previewing the prompt does not call a missing function" {
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit
+    print "$functions[prompt_z1_preview]" | grep -q editor-info && print "leftover: yes" || print "leftover: no"'
+  assert_success
+  assert_line "leftover: no"
+}
