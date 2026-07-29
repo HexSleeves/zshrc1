@@ -287,11 +287,11 @@ function compinit() {
   unfunction compinit compdef
   autoload -Uz compinit
 
-  if ! zstyle -t ':z1:compinit' cache; then
-    compinit "$@"
-  else
-    mkdir -p $ZSH_COMPDUMP:h
+  mkdir -p $ZSH_COMPDUMP:h
 
+  if ! zstyle -t ':z1:compinit' cache; then
+    compinit -d "$ZSH_COMPDUMP" "$@"
+  else
     # -C skips the function check (and implies -i, the security check skip).
     if [[ -n $ZSH_COMPDUMP(#qNmh-20) ]]; then
       compinit -C -d "$ZSH_COMPDUMP" "$@"  # Take the fast path.
