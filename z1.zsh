@@ -58,11 +58,17 @@ function cached-eval() {
 # Ensure path arrays do not contain duplicates.
 typeset -gaU cdpath fpath mailpath path prepath
 
-# prepath lets you keep elements at the front of path.
-prepath=(
-  $HOME/{,s}bin(N)
-  $HOME/.local/{,s}bin(N)
-)
+# prepath lets you keep elements at the front of path. Set it yourself, or via a
+# zstyle, and z1 will leave it alone:
+#   zstyle ':z1:path' prepath ~/bin ~/.local/bin
+if (( ! $#prepath )); then
+  zstyle -a ':z1:path' prepath 'prepath' \
+  || prepath=(
+    $HOME/{,s}bin(N)
+    $HOME/.local/{,s}bin(N)
+  )
+  prepath=(${~prepath})
+fi
 
 # path sets where Zsh searches for programs.
 path=(
