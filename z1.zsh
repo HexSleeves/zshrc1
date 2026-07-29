@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 # z1 - the first thing to run for a modern Zsh config
 
 #

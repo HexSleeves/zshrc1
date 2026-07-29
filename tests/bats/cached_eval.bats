@@ -40,8 +40,8 @@ EOS
 }
 
 @test "same-named commands in different directories do not collide" {
-  write_file "$TEST_HOME/a/tool" '#!/bin/zsh' 'print WHICH=a'
-  write_file "$TEST_HOME/b/tool" '#!/bin/zsh' 'print WHICH=b'
+  write_file "$TEST_HOME/a/tool" '#!/usr/bin/env zsh' 'print WHICH=a'
+  write_file "$TEST_HOME/b/tool" '#!/usr/bin/env zsh' 'print WHICH=b'
   chmod +x "$TEST_HOME/a/tool" "$TEST_HOME/b/tool"
 
   z1_zsh <<'EOS'

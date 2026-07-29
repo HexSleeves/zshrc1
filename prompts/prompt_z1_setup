@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 # prompt_z1_setup: Add a nice prompt for Z1 users.
 
 # Remove right prompt from prior commands

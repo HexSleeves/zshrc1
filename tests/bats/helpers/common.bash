@@ -64,7 +64,7 @@ z1_zsh() {
 # prepath, so a stub shadows the real command even when one is installed.
 stub_command() {
   local name="$1"; shift
-  printf '#!/bin/zsh\n%s\n' "$*" >"$TEST_HOME/bin/$name"
+  printf '#!/usr/bin/env zsh\n%s\n' "$*" >"$TEST_HOME/bin/$name"
   chmod +x "$TEST_HOME/bin/$name"
 }
 
