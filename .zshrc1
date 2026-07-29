@@ -14,8 +14,8 @@ ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
 mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
 
 # Set any zstyles you might use for configuration.
-[[ -r ${ZDOTDIR:-$HOME}/.zstyles ]] && \
-  source ${ZDOTDIR:-$HOME}/.zstyles
+[ -r $ZSH_CONFIG_DIR/.zstyles ] \
+&& . $ZSH_CONFIG_DIR/.zstyles
 
 #
 # Paths
@@ -84,7 +84,6 @@ fi
 
 # 16.2.3 Expansion and Globbing
 setopt extended_glob           # Use extended globbing syntax.
-setopt glob_dots               # Don't hide dotfiles from glob patterns.
 
 #
 # IO
@@ -116,10 +115,21 @@ setopt inc_append_history      # Write to the history file immediately, not when
 setopt NO_hist_beep            # Don't beep when accessing non-existent history.
 setopt NO_share_history        # Don't share history between all sessions.
 
-# Set the path to the default history file.
+# Set the history file and its sizes. HISTSIZE and SAVEHIST always have a value
+# in Zsh, so a zstyle is the only way to opt out of these defaults, eg:
+#   zstyle ':z1:history' histfile "$HOME/.zsh_history"
+#   zstyle ':z1:history' savehist 500000
+# Absent a zstyle, the sizes only grow, and never shrink a larger existing value.
 HISTFILE="$ZSH_DATA_DIR/zsh_history"
-[[ "$SAVEHIST" -gt 100000 ]] || SAVEHIST=100000  # Set history file size.
-[[ "$HISTSIZE" -gt  50000 ]] || HISTSIZE=50000   # Set session history size.
+[[ "$SAVEHIST" -gt 100000 ]] || SAVEHIST=100000  # History file size.
+[[ "$HISTSIZE" -gt  50000 ]] || HISTSIZE=50000   # Session history size.
+
+# A zstyle wins outright. Assign via a temp because `zstyle -s` empties its
+# target variable when the style isn't set.
+zstyle -s ':z1:history' histfile _z1_val && HISTFILE=$_z1_val
+zstyle -s ':z1:history' savehist _z1_val && SAVEHIST=$_z1_val
+zstyle -s ':z1:history' histsize _z1_val && HISTSIZE=$_z1_val
+unset _z1_val
 
 # Use a better history command.
 alias history='fc -li'
@@ -217,12 +227,12 @@ fpath=($ZSH_CONFIG_DIR/completions(-/FN) $fpath)
 
 # Queue compdef calls until the real compinit runs at the end of .zshrc.
 typeset -gHa __compdef_queue=()
-function compdef {
+function compdef() {
   (( $# )) && __compdef_queue+=("${(j: :)${(@q+)@}}")
 }
 
 # Wrap compinit to replay our compdef queue when called.
-function compinit {
+function compinit() {
   emulate -L zsh
   setopt local_options extended_glob
 
@@ -238,7 +248,7 @@ function compinit {
 }
 
 # Use caching for compinit.
-function compinit-fast {
+function compinit-fast() {
   emulate -L zsh
   setopt local_options extended_glob
 
@@ -271,6 +281,57 @@ setopt notify                  # Report status of background jobs immediately.
 setopt NO_bg_nice              # Don't run all background jobs at a lower priority.
 setopt NO_check_jobs           # Don't report on jobs when shell exit.
 setopt NO_hup                  # Don't kill jobs on shell exit.
+
+#
+# Hooks
+#
+
+# Zsh doesn't have a proper post_zshrc event, so we fake one by adding a run_post_zshrc
+# function to the precmd event. That function only runs once, and then unregisters
+# itself from precmd. If the user wants to (or needs to because it doesn't play well
+# with a plugin), they can run it themselves manually at the very end of their .zshrc,
+# and then it unregisters the precmd event.
+
+# Define a variable to hold actions run during the post_zshrc event, and a flag
+# recording whether the event has fired yet.
+typeset -ga post_zshrc_hook
+typeset -gi post_zshrc_done=0
+
+# Add our new event.
+function run_post_zshrc() {
+  # Run anything attached to the post_zshrc hook
+  local fn
+  for fn in $post_zshrc_hook; do
+    zstyle -t ':z1:post_zshrc' debug && print -u2 "post_zshrc is about to run: ${=fn}"
+    "${=fn}"
+  done
+
+  # Now delete the precmd hook and drain the list so that this only runs once,
+  # and doesn't keep running on every future precmd event. This function and its
+  # list var stay defined so that add-post-zshrc-hook still works afterwards.
+  post_zshrc_hook=()
+  post_zshrc_done=1
+  add-zsh-hook -d precmd run_post_zshrc
+}
+
+# Attach a function to the post_zshrc event. Adding one after the event already
+# fired runs it immediately, rather than dropping it on the floor.
+function add-post-zshrc-hook() {
+  if (( ! post_zshrc_done )); then
+    post_zshrc_hook+=("$@")
+    return
+  fi
+
+  local fn
+  for fn in "$@"; do
+    zstyle -t ':z1:post_zshrc' debug && print -u2 "post_zshrc already ran: ${=fn}"
+    "${=fn}"
+  done
+}
+
+# Attach run_post_zshrc to built-in precmd.
+autoload -U add-zsh-hook
+add-zsh-hook precmd run_post_zshrc
 
 #
 # Prompt
@@ -312,7 +373,7 @@ if [[ -r ${TTY:-} && -w ${TTY:-} && $+commands[stty] == 1 ]]; then
 fi
 
 # Run bindkey across every keymap. With no args, prints mappings per keymap.
-function bindkey-all {
+function bindkey-all() {
   local keymap=''
   for keymap in $(bindkey -l); do
     [[ "$#" -eq 0 ]] && printf "#### %s\n" "${keymap}" 1>&2
@@ -321,7 +382,7 @@ function bindkey-all {
 }
 
 # Bind one widget to multiple key sequences; skip empties.
-function bindkey-multiple {
+function bindkey-multiple() {
   local widget=$1 seq; shift
   for seq in "$@"; do
     [[ -n "$seq" ]] && bindkey "$seq" "$widget"
@@ -330,7 +391,7 @@ function bindkey-multiple {
 
 # Block cursor in vi cmd mode, beam in insert/emacs. Skip on terminals that
 # don't grok DECSCUSR.
-function update-cursor-style {
+function update-cursor-style() {
   case $TERM in
     xterm*|rxvt*|tmux*|screen*) ;;
     *) [[ -z "$TMUX" ]] && return ;;
@@ -355,18 +416,18 @@ function update-cursor-style {
 zle -N update-cursor-style
 
 # Enable terminal application mode so $terminfo key sequences are valid.
-function zle-line-init {
+function zle-line-init() {
   (( $+terminfo[smkx] )) && echoti smkx
   zle update-cursor-style
 }
 zle -N zle-line-init
 
-function zle-line-finish {
+function zle-line-finish() {
   (( $+terminfo[rmkx] )) && echoti rmkx
 }
 zle -N zle-line-finish
 
-function zle-keymap-select {
+function zle-keymap-select() {
   zle update-cursor-style
   zle reset-prompt
   zle -R
@@ -374,7 +435,7 @@ function zle-keymap-select {
 zle -N zle-keymap-select
 
 # Insert 'sudo ' at the beginning of the line.
-function prepend-sudo {
+function prepend-sudo() {
   if [[ "$BUFFER" != su(do|)\ * ]]; then
     BUFFER="sudo $BUFFER"
     (( CURSOR += 5 ))
@@ -384,7 +445,7 @@ zle -N prepend-sudo
 
 # Toggle a leading '#' on the current line. Workaround for buggy pound-insert
 # in emacs mode; vi mode uses the built-in vi-pound-insert.
-function pound-toggle {
+function pound-toggle() {
   if [[ "$BUFFER" = '#'* ]]; then
     [[ $CURSOR != $#BUFFER ]] && (( CURSOR -= 1 ))
     BUFFER="${BUFFER:1}"
