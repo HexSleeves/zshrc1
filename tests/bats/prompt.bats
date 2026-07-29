@@ -74,56 +74,84 @@ teardown() { z1_teardown; }
   assert_line "prompts in fpath: 0"
 }
 
-# The prompt character is chosen while PROMPT is expanded, so these set $KEYMAP
-# and expand it by hand, the way `zle reset-prompt` would.
-@test "vi command mode gets its own prompt character" {
-  z1_zsh 'source $Z1
+# The character comes from $KEYMAP and the color from $?, both resolved during
+# prompt expansion. These render with `print -P` after forcing an exit status,
+# and compare the escapes in visible form. Characters are set explicitly so the
+# assertions do not move when the default glyphs are changed.
+setup_chars() {
+  echo 'zstyle ":z1:prompt:character" success S
+    zstyle ":z1:prompt:character" error E
+    zstyle ":z1:prompt:character" vicmd V
+    source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
-    for k in main viins vicmd emacs; do
-      KEYMAP=$k; print -r -- "$k: ${(e)PROMPT}"
-    done'
+    render() { KEYMAP=$2; ( exit $1 ); local o=$(print -Pn -- $PROMPT); print -r -- "${(V)o}" }'
+}
+
+@test "vi command mode gets its own prompt character" {
+  z1_zsh "$(setup_chars)"'
+    print "main:  $(render 0 main)"
+    print "viins: $(render 0 viins)"
+    print "vicmd: $(render 0 vicmd)"'
   assert_success
-  assert_output_contains "main: %F{039}%f %F{076}❱%f"
-  assert_output_contains "viins: %F{039}%f %F{076}❱%f"
-  assert_output_contains "vicmd: %F{039}%f %F{076}❰%f"
-  assert_output_contains "emacs: %F{039}%f %F{076}❱%f"
+  assert_output_contains "main:  ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
+  assert_output_contains "viins: ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
+  assert_output_contains "vicmd: ^[[38;5;39m^[[39m ^[[38;5;76mV^[[39m"
 }
 
 # zle also reports isearch and listscroll. Looking the keymap up in the
 # character table means an unnamed one falls back rather than printing itself.
 @test "an unrecognized keymap falls back to the success character" {
-  z1_zsh 'source $Z1
-    autoload -Uz promptinit && promptinit && prompt z1
-    for k in isearch listscroll nonsense ""; do
-      KEYMAP=$k; print -r -- "[$k] ${(e)PROMPT}"
-    done
-    unset KEYMAP; print -r -- "[unset] ${(e)PROMPT}"'
+  z1_zsh "$(setup_chars)"'
+    for k in isearch listscroll nonsense ""; do print "[$k] $(render 0 $k)"; done'
   assert_success
-  refute_line "[isearch] %F{039}%f %F{076}isearch%f "
-  assert_output_contains "[isearch] %F{039}%f %F{076}❱%f"
-  assert_output_contains "[listscroll] %F{039}%f %F{076}❱%f"
-  assert_output_contains "[nonsense] %F{039}%f %F{076}❱%f"
-  assert_output_contains "[unset] %F{039}%f %F{076}❱%f"
+  assert_output_contains "[isearch] ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
+  assert_output_contains "[listscroll] ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
+  assert_output_contains "[nonsense] ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
+  assert_output_contains "[] ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
 }
 
-@test "the vicmd character style is honored" {
-  z1_zsh 'zstyle ":z1:prompt:character" vicmd "N"
-    source $Z1
-    autoload -Uz promptinit && promptinit && prompt z1
-    KEYMAP=vicmd; print -r -- "vicmd: ${(e)PROMPT}"'
+@test "a failed command switches to the error character in red" {
+  z1_zsh "$(setup_chars)"'
+    print "ok:   $(render 0 main)"
+    print "fail: $(render 1 main)"'
   assert_success
-  assert_output_contains "vicmd: %F{039}%f %F{076}N%f"
+  assert_output_contains "ok:   ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
+  assert_output_contains "fail: ^[[38;5;39m^[[39m ^[[38;5;160mE^[[39m"
 }
 
-@test "disabling unicode gives vi command mode an ASCII character" {
+# In command mode the keymap still owns the character, but the color follows the
+# exit status, so a failure is not hidden by being in vi command mode.
+@test "vi command mode keeps its character but takes the error color" {
+  z1_zsh "$(setup_chars)"'
+    print "ok:   $(render 0 vicmd)"
+    print "fail: $(render 1 vicmd)"'
+  assert_success
+  assert_output_contains "ok:   ^[[38;5;39m^[[39m ^[[38;5;76mV^[[39m"
+  assert_output_contains "fail: ^[[38;5;39m^[[39m ^[[38;5;160mV^[[39m"
+}
+
+@test "the color styles are honored" {
+  z1_zsh "$(setup_chars)"'
+    zstyle ":z1:prompt:colors" red 196
+    zstyle ":z1:prompt:colors" green 046
+    prompt z1
+    print "ok:   $(render 0 main)"
+    print "fail: $(render 1 main)"'
+  assert_success
+  assert_output_contains "ok:   ^[[38;5;39m^[[39m ^[[38;5;46mS^[[39m"
+  assert_output_contains "fail: ^[[38;5;39m^[[39m ^[[38;5;196mE^[[39m"
+}
+
+@test "disabling unicode gives ASCII characters" {
   z1_zsh 'zstyle ":z1:prompt:unicode" disable yes
     source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
-    KEYMAP=vicmd; print -r -- "vicmd: ${(e)PROMPT}"
-    KEYMAP=main;  print -r -- "main: ${(e)PROMPT}"'
+    render() { KEYMAP=$2; ( exit $1 ); local o=$(print -Pn -- $PROMPT); print -r -- "${(V)o}" }
+    print "ok:    $(render 0 main)"
+    print "vicmd: $(render 0 vicmd)"'
   assert_success
-  assert_output_contains "vicmd: %F{039}%f %F{076}V%f"
-  assert_output_contains "main: %F{039}%f %F{076}%%%f"
+  assert_output_contains "ok:    ^[[38;5;39m^[[39m ^[[38;5;76m%^[[39m"
+  assert_output_contains "vicmd: ^[[38;5;39m^[[39m ^[[38;5;76mV^[[39m"
 }
 
 # prompt_z1_preview used to call editor-info, a prezto function z1 does not have.
@@ -133,4 +161,60 @@ teardown() { z1_teardown; }
     print "$functions[prompt_z1_preview]" | grep -q editor-info && print "leftover: yes" || print "leftover: no"'
   assert_success
   assert_line "leftover: no"
+}
+
+@test "the prompt runs vcs_info asynchronously when lib/async.zsh is there" {
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    print "async: $(( $+functions[async-task] ))"
+    print "rprompt: $RPROMPT"
+    print "task: ${async_tasks[prompt_z1_vcs]}"'
+  assert_success
+  assert_line "async: 1"
+  assert_line 'rprompt: ${async_output[prompt_z1_vcs]}'
+  assert_line "task: prompt_z1_vcs"
+}
+
+# The prompt has to work on its own, since a lone z1.zsh has no lib/ beside it.
+@test "the prompt falls back to synchronous vcs_info without the library" {
+  mkdir -p "$TEST_HOME/solo/prompts"
+  cp "$PRJDIR/z1.zsh" "$TEST_HOME/solo/z1.zsh"
+  cp "$PRJDIR/prompts/prompt_z1_setup" "$TEST_HOME/solo/prompts/"
+
+  z1_zsh 'source $HOME/solo/z1.zsh
+    autoload -Uz promptinit && promptinit && prompt z1
+    print "async: $(( $+functions[async-task] ))"
+    print "rprompt: $RPROMPT"'
+  assert_success
+  assert_line "async: 0"
+  assert_line 'rprompt: ${vcs_info_msg_0_}'
+}
+
+@test "precmd does not run vcs_info when the async task has it" {
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    vcs_info_msg_0_=untouched
+    prompt_z1_precmd
+    print "sync ran: $([[ $vcs_info_msg_0_ == untouched ]] && print no || print yes)"'
+  assert_success
+  assert_line "sync ran: no"
+}
+
+@test "the async task produces the branch name in a repo" {
+  mkdir -p "$TEST_HOME/repo"
+  git -C "$TEST_HOME/repo" init -q
+  git -C "$TEST_HOME/repo" config user.email t@example.com
+  git -C "$TEST_HOME/repo" config user.name tester
+  : >"$TEST_HOME/repo/file"
+  git -C "$TEST_HOME/repo" add file
+  git -C "$TEST_HOME/repo" commit -qm init
+
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    builtin cd $HOME/repo
+    prompt_z1_precmd; async-run; async-wait
+    print "vcs: ${async_output[prompt_z1_vcs]}"'
+  assert_success
+  assert_output_contains "vcs: "
+  refute_line "vcs: "
 }

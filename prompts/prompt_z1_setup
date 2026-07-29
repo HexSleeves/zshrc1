@@ -54,7 +54,13 @@ function prompt_z1_precmd {
   setopt local_options
   unsetopt xtrace ksh_arrays
   _prompt_z1_pwd=$(prompt_pwd)
+  (( $+functions[async-task] )) || vcs_info
+}
+
+# What the async worker runs. vcs_info fills a variable, so print it.
+function prompt_z1_vcs {
   vcs_info
+  print -rn -- "$vcs_info_msg_0_"
 }
 
 function prompt_z1_setup {
@@ -68,6 +74,11 @@ function prompt_z1_setup {
 
   # Add hook for calling vcs_info before each command.
   add-zsh-hook precmd prompt_z1_precmd
+
+  # vcs_info costs tens of ms per prompt, so run it off the critical path when
+  # lib/async.zsh is around. %x is this file even when autoloaded.
+  local _z1_lib=${${(%):-%x}:A:h:h}/lib/async.zsh
+  [[ -r $_z1_lib ]] && source $_z1_lib
 
   # Define default prompt colors.
   typeset -gA _prompt_z1_colors=(
@@ -106,9 +117,9 @@ function prompt_z1_setup {
 
   # Use unicode chars if available.
   if ! zstyle -t ':z1:prompt:unicode' disable; then
-    zstyle -s ':z1:prompt:character' success '_prompt_z1_chars[success]' || _prompt_z1_chars[success]="❱"
-    zstyle -s ':z1:prompt:character' error   '_prompt_z1_chars[error]'   || _prompt_z1_chars[error]="❱"
-    zstyle -s ':z1:prompt:character' vicmd   '_prompt_z1_chars[vicmd]'   || _prompt_z1_chars[vicmd]="❰"
+    zstyle -s ':z1:prompt:character' success '_prompt_z1_chars[success]' || _prompt_z1_chars[success]="❯" # "❱"
+    zstyle -s ':z1:prompt:character' error   '_prompt_z1_chars[error]'   || _prompt_z1_chars[error]="❯" # "❱"
+    zstyle -s ':z1:prompt:character' vicmd   '_prompt_z1_chars[vicmd]'   || _prompt_z1_chars[vicmd]="❮" # "❰"
     zstyle -s ':z1:prompt:character' stash   '_prompt_z1_chars[stash]'   || _prompt_z1_chars[stash]="☰"
     zstyle -s ':z1:prompt:character' dirty   '_prompt_z1_chars[dirty]'   || _prompt_z1_chars[dirty]="•"  # "✱"
     zstyle -s ':z1:prompt:character' ahead   '_prompt_z1_chars[ahead]'   || _prompt_z1_chars[ahead]="⇡"
@@ -124,12 +135,19 @@ function prompt_z1_setup {
   zstyle ':vcs_info:*' actionformats "%b%c%u%m|%F{cyan}%a%f"
   zstyle ':vcs_info:git*+set-message:*' hooks git_status
 
-  # Keymap picks the character, resolved when the prompt is expanded.
-  local pchar='${_prompt_z1_chars[${KEYMAP:-main}]:-$_prompt_z1_chars[success]}'
+  # Keymap picks the character, exit status picks the color, both resolved when
+  # the prompt is expanded.
+  local pcolor='%(?.%F{${_prompt_z1_colors[green]}}.%F{${_prompt_z1_colors[red]}})'
+  local pchar='${_prompt_z1_chars[${KEYMAP:-main}]:-%(?.$_prompt_z1_chars[success].$_prompt_z1_chars[error])}'
 
   # Define prompts.
-  PROMPT='%F{${_prompt_z1_colors[blue]}}$_prompt_z1_pwd%f %F{${_prompt_z1_colors[green]}}'$pchar'%f '
-  RPROMPT='${vcs_info_msg_0_}'
+  PROMPT='%F{${_prompt_z1_colors[blue]}}$_prompt_z1_pwd%f '$pcolor$pchar'%f '
+  if (( $+functions[async-task] )); then
+    async-task prompt_z1_vcs prompt_z1_vcs
+    RPROMPT='${async_output[prompt_z1_vcs]}'
+  else
+    RPROMPT='${vcs_info_msg_0_}'
+  fi
 }
 
 function prompt_z1_preview {
