@@ -1,6 +1,11 @@
 #!/usr/bin/env bats
 # compinit is wrapped so compdef calls can be queued during .zshrc, and so the
 # dumpfile can be cached. Dumpfile location and caching are separate settings.
+#
+# These call `compinit -i`, which z1 forwards to the real compinit. CI images
+# have group-writable directories in fpath, and without -i compaudit stops to
+# ask about them, which a session with no terminal cannot answer. The cached
+# path already passes -C or -i, which is why it never hit this.
 
 load helpers/common
 
@@ -11,7 +16,7 @@ teardown() { z1_teardown; }
   z1_zsh <<'EOS'
 source $Z1
 ZSH_COMPDUMP=$HOME/nested/dir/mydump
-compinit
+compinit -i
 [[ -f $ZSH_COMPDUMP ]] && print "dumpfile: written" || print "dumpfile: missing"
 [[ -f $HOME/.zcompdump ]] && print "home: written" || print "home: clean"
 EOS
@@ -25,7 +30,7 @@ EOS
 zstyle ':z1:compinit' cache 'yes'
 source $Z1
 ZSH_COMPDUMP=$HOME/nested/dir/mydump
-compinit
+compinit -i
 [[ -f $ZSH_COMPDUMP ]] && print "dumpfile: written" || print "dumpfile: missing"
 [[ -f $HOME/.zcompdump ]] && print "home: written" || print "home: clean"
 EOS
@@ -39,7 +44,7 @@ EOS
 zstyle ':z1:compinit' dumpfile "$HOME/styled-dump"
 source $Z1
 print "compdump: $ZSH_COMPDUMP"
-compinit
+compinit -i
 [[ -f $HOME/styled-dump ]] && print "written: yes" || print "written: no"
 EOS
   assert_success
@@ -62,7 +67,7 @@ EOS
   z1_zsh <<'EOS'
 source $Z1
 ZSH_COMPDUMP=$HOME/ours
-compinit -d $HOME/theirs
+compinit -i -d $HOME/theirs
 [[ -f $HOME/theirs ]] && print "theirs: written" || print "theirs: missing"
 [[ -f $HOME/ours ]] && print "ours: written" || print "ours: missing"
 EOS
@@ -76,7 +81,7 @@ EOS
 source $Z1
 compdef _gnu_generic mytool
 print "queued: $#__compdef_queue"
-compinit
+compinit -i
 (( $+_comps[mytool] )) && print "registered: yes" || print "registered: no"
 EOS
   assert_success
@@ -87,7 +92,7 @@ EOS
 @test "the compinit and compdef wrappers replace themselves" {
   z1_zsh <<'EOS'
 source $Z1
-compinit
+compinit -i
 print "compinit: $functions[compinit]"
 EOS
   assert_success
@@ -101,7 +106,7 @@ EOS
 zstyle ':z1:compinit' cache 'yes'
 source $Z1
 ZSH_COMPDUMP=$HOME/dump
-compinit
+compinit -i
 first=$(zmodload zsh/stat; zstat +mtime $ZSH_COMPDUMP)
 print "exists: $([[ -f $ZSH_COMPDUMP ]] && print yes || print no)"
 print "mtime-set: $([[ -n $first ]] && print yes || print no)"
