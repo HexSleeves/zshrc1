@@ -366,9 +366,12 @@ function compinit() {
     # record the fpath it was built from alongside it, and start over when that
     # moves. The stamp lives in its own file because `$(<file)` costs nothing,
     # while searching the dumpfile itself means forking grep on every startup.
-    local stampfile=$ZSH_COMPDUMP.fpath stamped=
+    # Snapshot fpath first: compinit -i drops insecure directories from it, so
+    # stamping afterwards would record something the next startup never matches,
+    # and the cache would rebuild every time.
+    local stampfile=$ZSH_COMPDUMP.fpath stamped= wanted="$fpath"
     [[ -r $stampfile ]] && stamped="$(<$stampfile)"
-    if [[ "$fpath" != "$stamped" ]]; then
+    if [[ "$wanted" != "$stamped" ]]; then
       command rm -f "$ZSH_COMPDUMP" "$ZSH_COMPDUMP.zwc"
     fi
 
@@ -377,7 +380,7 @@ function compinit() {
       compinit -C -d "$ZSH_COMPDUMP" "$@"  # Take the fast path.
     else
       compinit -i -d "$ZSH_COMPDUMP" "$@"
-      print -r -- "$fpath" >| $stampfile
+      print -r -- "$wanted" >| $stampfile
       touch "$ZSH_COMPDUMP"  # Always reset the time when we take the slow path.
     fi
 

@@ -202,3 +202,31 @@ EOS
   assert_line "done: 0"
   refute_line "z1: ignoring insecure completion directories:"
 }
+
+# compinit -i drops insecure directories from fpath. Stamping after that call
+# records something the next startup never matches, so the cache rebuilds every
+# time. Ubuntu ships a group-writable /usr/share/zsh, so this is the default
+# state on a stock box, not a corner case.
+@test "an insecure directory in fpath does not defeat the cache" {
+  mkdir -p "$TEST_HOME/insecure"
+  chmod 777 "$TEST_HOME/insecure"
+
+  z1_zsh 'zstyle ":z1:compinit" cache yes
+    source $Z1
+    fpath=($HOME/insecure $fpath)
+    ZSH_COMPDUMP=$HOME/dump
+    compinit
+    print "fpath after: $#fpath"'
+  assert_success
+
+  printf 'print "cache hit"\n' >>"$TEST_HOME/dump"
+  rm -f "$TEST_HOME/dump.zwc"
+
+  z1_zsh 'zstyle ":z1:compinit" cache yes
+    source $Z1
+    fpath=($HOME/insecure $fpath)
+    ZSH_COMPDUMP=$HOME/dump
+    compinit'
+  assert_success
+  assert_line "cache hit"
+}
