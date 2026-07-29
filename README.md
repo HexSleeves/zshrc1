@@ -64,9 +64,25 @@ curl -fsSL https://raw.githubusercontent.com/mattmc3/z1/main/z1.zsh -o ${ZDOTDIR
 source ${ZDOTDIR:-$HOME}/z1.zsh
 ```
 
-Zsh plugin managers can load `z1.plugin.zsh` instead.
+Or use a Zsh plugin manager, which will load `z1.plugin.zsh` for you. With
+[antidote][antidote]:
 
+```zsh
+# .zsh_plugins.txt
+mattmc3/z1
+```
 
+Or, using dynamic plugins without a .zsh_plugins.txt file:
+
+```zsh
+# .zshrc
+source <(antidote init)
+antidote bundle mattmc3/z1
+```
+
+Since `z1` sets up the basics everything else builds on, list it first.
+
+[antidote]: https://antidote.sh
 [fish]: https://fishshell.com
 [ohmyzsh]: https://github.com/ohmyzsh/ohmyzsh
 [prezto]: https://github.com/sorin-ionescu/prezto
