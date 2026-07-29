@@ -13,9 +13,16 @@ ZSH_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
 ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
 mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
 
-# Set any zstyles you might use for configuration.
-[ -r $ZSH_CONFIG_DIR/.zstyles ] \
-&& . $ZSH_CONFIG_DIR/.zstyles
+# Set any zstyles you might use for configuration. To source .zstyles yourself,
+# at whatever point suits you, claim the job before sourcing z1:
+#   zstyle ':z1:zstyles' loaded 'yes'
+# z1 sets the same style once it loads them, so sourcing z1 twice, or sourcing
+# .zstyles before z1, won't load them twice.
+if ! zstyle -t ':z1:zstyles' loaded; then
+  [ -r $ZSH_CONFIG_DIR/.zstyles ] \
+  && . $ZSH_CONFIG_DIR/.zstyles
+  zstyle ':z1:zstyles' loaded 'yes'
+fi
 
 # Cache the output of a command that prints Zsh code, so later shells source a
 # file instead of paying to run it again. Cached for 20 hours in $ZSH_CACHE_DIR,
