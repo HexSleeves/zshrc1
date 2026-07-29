@@ -4,8 +4,56 @@
 
 load helpers/common
 
-setup() { z1_setup; }
+setup() {
+  z1_setup
+  CONFD="$TEST_HOME/.config/zsh/conf.d"
+}
 teardown() { z1_teardown; }
+
+# Completions are dead until compinit runs, and the queued compdef calls never
+# replay. Rather than leave that to every user's .zshrc, run it on post_zshrc.
+@test "post_zshrc runs compinit when the .zshrc did not" {
+  z1_zsh <<'EOS'
+source $Z1
+compdef _gnu_generic mytool
+print "early: $#_comps"
+run_post_zshrc
+(( $#_comps )) && print "after: loaded" || print "after: empty"
+(( $+_comps[mytool] )) && print "queued: replayed" || print "queued: dropped"
+EOS
+  assert_success
+  assert_line "early: 0"
+  assert_line "after: loaded"
+  assert_line "queued: replayed"
+}
+
+# Emptying _comps after the manual call makes a second run visible: only a
+# rerun would refill it.
+@test "post_zshrc leaves a compinit the .zshrc already ran alone" {
+  z1_zsh <<'EOS'
+source $Z1
+compinit
+_comps=()
+run_post_zshrc
+(( $#_comps )) && print "rerun: yes" || print "rerun: no"
+EOS
+  assert_success
+  assert_line "rerun: no"
+}
+
+# conf.d gets to add to fpath, so compinit has to come after it.
+@test "compinit picks up a completion conf.d added to fpath" {
+  write_file "$CONFD/10-fpath.zsh" 'fpath=($HOME/zextra $fpath)'
+  write_file "$TEST_HOME/zextra/_mytool" '#compdef mytool' '_message x'
+
+  z1_zsh <<'EOS'
+source $Z1
+run_post_zshrc
+(( $+_comps[mytool] )) && print "completion: yes" || print "completion: no"
+EOS
+  assert_success
+  assert_line "completion: yes"
+}
 
 @test "the dumpfile location is honored with caching off" {
   z1_zsh <<'EOS'

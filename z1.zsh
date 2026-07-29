@@ -350,14 +350,17 @@ function compinit() {
   emulate -L zsh
   setopt local_options extended_glob
 
+  # Load the real compinit so we can call it from this wrapper.
   unfunction compinit compdef
   autoload -Uz compinit
 
-  mkdir -p $ZSH_COMPDUMP:h
+  # Running this elsewhere is fine, and means the post_zshrc hook has no work left.
+  post_zshrc_hook=(${post_zshrc_hook:#compinit})
 
   # -i ignores insecure directories rather than prompting about them. Say so
   # afterwards instead, since a prompt during startup blocks a shell that has no
   # terminal to answer with, and tells a user with one nothing actionable.
+  mkdir -p $ZSH_COMPDUMP:h
   if ! zstyle -t ':z1:compinit' cache; then
     compinit -i -d "$ZSH_COMPDUMP" "$@"
   else
@@ -706,7 +709,7 @@ function run_confd() {
   local confd
   zstyle -s ':z1:confd' directory confd || confd=$ZSH_CONFIG_DIR/conf.d
 
-  # Running this by hand is fine, and means the post_zshrc hook has no work left.
+  # Running this elsewhere is fine, and means the post_zshrc hook has no work left.
   post_zshrc_hook=(${post_zshrc_hook:#run_confd})
 
   local rc
@@ -716,6 +719,7 @@ function run_confd() {
   done
 }
 
-# Wait for the end of .zshrc so conf.d files can build on everything the rest of
-# the .zshrc set up. To load them at some other point, call run_confd yourself.
+# Register functions to run at the end of .zshrc. Each function here runs in order,
+# and should unregister itself from the post_zshrc_hook if it runs early.
 add-post-zshrc-hook run_confd
+add-post-zshrc-hook compinit
