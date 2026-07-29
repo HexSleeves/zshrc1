@@ -49,7 +49,7 @@ z1_zsh() {
     body="$(cat)"
   fi
   run env -i \
-    PATH="$PATH" \
+    PATH="${Z1_TEST_PATH:-$PATH}" \
     HOME="$TEST_HOME" \
     ZDOTDIR="$TEST_HOME/.config/zsh" \
     XDG_CONFIG_HOME="$TEST_HOME/.config" \

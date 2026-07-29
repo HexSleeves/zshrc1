@@ -326,9 +326,23 @@ function compdef() {
   (( $# )) && __compdef_queue+=("${(j: :)${(@q+)@}}")
 }
 
+# Print the completion directories compaudit objects to, and how to fix them.
+# Backgrounded by compinit, because the alternative is compinit stopping to ask,
+# which a shell with no terminal cannot answer.
+function z1-compaudit-warn() {
+  emulate -L zsh
+  autoload -Uz compaudit
+
+  local -a insecure=(${(f)"$(compaudit 2>/dev/null)"})
+  (( $#insecure )) || return 0
+
+  print -u2 "z1: ignoring insecure completion directories:"
+  print -lu2 -- $insecure
+  print -u2 "z1: fix them with: compaudit | xargs chmod g-w,o-w"
+}
+
 # Wrap compinit to replay our compdef queue when it's called. Caching the
-# dumpfile skips most of compinit's work and makes startup much faster, but it
-# is opt-in, since a stale cache hides newly installed completions:
+# dumpfile skips most of compinit's work and makes startup much faster:
 #   zstyle ':z1:compinit' cache 'yes'
 # See ZSH_COMPDUMP above to move the dumpfile. Args are passed through to the
 # real compinit and win over what we set, since a later -d beats an earlier one.
@@ -341,14 +355,29 @@ function compinit() {
 
   mkdir -p $ZSH_COMPDUMP:h
 
+  # -i ignores insecure directories rather than prompting about them. Say so
+  # afterwards instead, since a prompt during startup blocks a shell that has no
+  # terminal to answer with, and tells a user with one nothing actionable.
   if ! zstyle -t ':z1:compinit' cache; then
-    compinit -d "$ZSH_COMPDUMP" "$@"
+    compinit -i -d "$ZSH_COMPDUMP" "$@"
   else
+    # A dumpfile built from a different fpath is missing whatever the new
+    # entries provide, and an age check alone would hide that for 20 hours. So
+    # record the fpath it was built from alongside it, and start over when that
+    # moves. The stamp lives in its own file because `$(<file)` costs nothing,
+    # while searching the dumpfile itself means forking grep on every startup.
+    local stampfile=$ZSH_COMPDUMP.fpath stamped=
+    [[ -r $stampfile ]] && stamped="$(<$stampfile)"
+    if [[ "$fpath" != "$stamped" ]]; then
+      command rm -f "$ZSH_COMPDUMP" "$ZSH_COMPDUMP.zwc"
+    fi
+
     # -C skips the function check (and implies -i, the security check skip).
     if [[ -n $ZSH_COMPDUMP(#qNmh-20) ]]; then
       compinit -C -d "$ZSH_COMPDUMP" "$@"  # Take the fast path.
     else
       compinit -i -d "$ZSH_COMPDUMP" "$@"
+      print -r -- "$fpath" >| $stampfile
       touch "$ZSH_COMPDUMP"  # Always reset the time when we take the slow path.
     fi
 
@@ -356,6 +385,8 @@ function compinit() {
     autoload -Uz zrecompile
     zrecompile -q -p "$ZSH_COMPDUMP" &!
   fi
+
+  z1-compaudit-warn &|
 
   local entry
   for entry in "${__compdef_queue[@]}"; do
