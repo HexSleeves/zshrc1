@@ -468,6 +468,17 @@ add-zsh-hook precmd run_post_zshrc
 # 16.2.8 Prompt
 setopt prompt_subst            # Expand parameters in prompt variables
 
+# Let the built-in prompt system find prompts: yours first, then any that shipped
+# with z1. Both vanish when absent, so a lone z1.zsh file is fine. Starting the
+# prompt system is left to you, since not everyone wants it:
+#   autoload -Uz promptinit && promptinit
+#   prompt z1
+fpath=(
+  $ZSH_CONFIG_DIR/prompts(-/FN)
+  ${0:A:h}/prompts(-/FN)
+  $fpath
+)
+
 # Set 2 space indent for each new level in a multi-line script. This can then be
 # overridden by a prompt or plugin, but is a better default than Zsh's.
 PS2='${${${(%):-%_}//[^ ]}// /  }    '

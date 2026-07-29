@@ -37,7 +37,7 @@ Feel free to use it as-is, build off it, or fork it and make it entirely your ow
 - Sensible line editor setup with vi/emacs keymap selection, cursor-style hints, and common terminal key fixes
 - Useful zle widgets like `prepend-sudo`, `pound-toggle`, `edit-command-line`, paste magic, and quote magic
 - Configure Zsh built-in completion system with cached `compinit` for fast startup
-- Use built-in Zsh prompt system, with prompts loaded from a `prompts/` directory
+- Use built-in Zsh prompt system, with prompts found in your own `prompts/` directory
 - Initialize Homebrew automatically when present
 
 ## Installation
@@ -128,7 +128,16 @@ rebuilds itself whenever `$fpath` changes.
 
 ### Prompt
 
-The bundled `z1` prompt, selected with `prompt z1`, reads these:
+`z1` adds `$ZSH_CONFIG_DIR/prompts` and its own `prompts/` directory to `fpath`,
+yours first. Starting zsh's prompt system is left to you:
+
+```zsh
+# .zshrc
+autoload -Uz promptinit && promptinit
+prompt z1
+```
+
+The bundled `z1` prompt reads these:
 
 | Context                | Style                                                          | Default           | What it does                                                              |
 | ---------------------- | -------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------- |
