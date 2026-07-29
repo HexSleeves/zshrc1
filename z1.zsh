@@ -484,9 +484,11 @@ setopt NO_flow_control         # Allow ^Q/^S in zsh.
 # Treat these characters as part of a word.
 WORDCHARS='*?_-.[]~&;!#$%^(){}<>'
 
-# Optional keymap override: set ZSH_BINDKEY to vi or emacs.
+# Pick the keymap, vi or emacs:
+[[ -n "$ZSH_BINDKEY" ]] || zstyle -s ':z1:editor' keymap ZSH_BINDKEY
+
 bindkey -d
-case "${ZSH_BINDKEY:-emacs}" in
+case "${ZSH_BINDKEY:=emacs}" in
   vi)    bindkey -v ;;
   emacs) bindkey -e ;;
   *)                ;;

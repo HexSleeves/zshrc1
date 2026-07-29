@@ -82,6 +82,70 @@ antidote bundle mattmc3/z1
 
 Since `z1` sets up the basics everything else builds on, list it first.
 
+## Configuration
+
+`z1` is configured with zstyles. Set them in `$ZDOTDIR/.zstyles`, which `z1`
+sources for you, or anywhere in your `.zshrc` before `z1` loads.
+
+| Context          | Style       | Default                                    | What it does                                                      |
+| ---------------- | ----------- | ------------------------------------------ | ----------------------------------------------------------------- |
+| `:z1:color`      | `cache`     | off                                        | Cache `dircolors --sh` output rather than running it each startup |
+| `:z1:compinit`   | `cache`     | off                                        | Cache the completion dumpfile and take `compinit`'s fast path     |
+| `:z1:compinit`   | `dumpfile`  | `$ZSH_CACHE_DIR/ZSH_COMPDUMP-$ZSH_VERSION` | Where the completion dumpfile lives                               |
+| `:z1:confd`      | `directory` | `$ZSH_CONFIG_DIR/conf.d`                   | Directory of config files to source at the end of your `.zshrc`   |
+| `:z1:editor`     | `keymap`    | `emacs`                                    | Line editor keymap. Set it to `vi` for vi mode                    |
+| `:z1:history`    | `histfile`  | `$ZSH_DATA_DIR/zsh_history`                | Where history is written                                          |
+| `:z1:history`    | `histsize`  | `50000`                                    | Events kept in the current session                                |
+| `:z1:history`    | `savehist`  | `100000`                                   | Events kept in the history file                                   |
+| `:z1:homebrew`   | `cache`     | off                                        | Cache `brew shellenv` output rather than running it each startup  |
+| `:z1:path`       | `prepath`   | `~/bin ~/sbin ~/.local/bin ~/.local/sbin`  | Entries kept at the front of `$path`                              |
+| `:z1:post_zshrc` | `debug`     | off                                        | Print each `post_zshrc` hook as it runs                           |
+| `:z1:zstyles`    | `loaded`    | off                                        | Set it yourself to stop `z1` sourcing your `.zstyles`             |
+
+Of the `prepath` defaults, only the directories that exist are used.
+
+```zsh
+# .zstyles
+zstyle ':z1:history' savehist 500000
+zstyle ':z1:confd' directory "$ZSH_CONFIG_DIR/rc.d"
+```
+
+Caching is off by default because a cache hides a change until it expires, after
+20 hours. Every cache shares the style name `cache`, so one pattern turns them
+all on:
+
+```zsh
+zstyle ':z1:*' cache 'yes'
+```
+
+Use `cached-eval --clear` to empty the caches by hand, and `compinit`'s cache
+rebuilds itself whenever `$fpath` changes.
+
+### Prompt
+
+The bundled `z1` prompt, selected with `prompt z1`, reads these:
+
+| Context                | Style                                                          | Default           | What it does                                                              |
+| ---------------------- | -------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------- |
+| `:z1:prompt`           | `pwd-length`                                                   | short             | `full` for `$PWD`, `long` for a `~`-shortened path, otherwise abbreviated |
+| `:z1:prompt:character` | `success` `error` `vicmd` `stash` `dirty` `ahead` `behind`     | `❱ ❱ ❰ ☰ • ⇡ ⇣`   | Symbols the prompt is built from                                          |
+| `:z1:prompt:colors`    | `black` `red` `green` `yellow` `blue` `magenta` `cyan` `white` | 256-color palette | Color numbers the prompt is built from                                    |
+| `:z1:prompt:unicode`   | `disable`                                                      | off               | Fall back to ASCII symbols                                                |
+
+### Variables
+
+A few things are plain variables, because they are read before any zstyle could
+be set, or are conventional names from elsewhere.
+
+| Variable         | Default                                 | What it does                                    |
+| ---------------- | --------------------------------------- | ----------------------------------------------- |
+| `ZFUNCDIR`       | `$ZSH_CONFIG_DIR/functions`             | Directory of functions to autoload              |
+| `ZSH_BINDKEY`    | see `:z1:editor` `keymap`               | Wins over the zstyle when set before `z1` loads |
+| `ZSH_COMPDUMP`   | see `:z1:compinit` `dumpfile`           | Wins over the zstyle when set before `z1` loads |
+| `ZSH_CONFIG_DIR` | `$ZDOTDIR`, else `$XDG_CONFIG_HOME/zsh` | Where your config lives                         |
+| `ZSH_DATA_DIR`   | `$XDG_DATA_HOME/zsh`                    | Where data that should persist lives            |
+| `ZSH_CACHE_DIR`  | `$XDG_CACHE_HOME/zsh`                   | Where throwaway data lives                      |
+
 [antidote]: https://antidote.sh
 [fish]: https://fishshell.com
 [ohmyzsh]: https://github.com/ohmyzsh/ohmyzsh
