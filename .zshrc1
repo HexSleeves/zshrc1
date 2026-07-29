@@ -225,49 +225,57 @@ zmodload zsh/complist
 # Lazy-load my completions
 fpath=($ZSH_CONFIG_DIR/completions(-/FN) $fpath)
 
+# Location of the completion dumpfile. A ZSH_COMPDUMP set before we're sourced
+# wins, otherwise a zstyle, otherwise a versioned file in the cache dir:
+#   zstyle ':z1:compinit' dumpfile "$ZSH_CACHE_DIR/zcompdump"
+typeset -g ZSH_COMPDUMP
+if [[ -z "$ZSH_COMPDUMP" ]]; then
+  zstyle -s ':z1:compinit' dumpfile ZSH_COMPDUMP ||
+    ZSH_COMPDUMP=$ZSH_CACHE_DIR/ZSH_COMPDUMP-${ZSH_VERSION}
+fi
+
 # Queue compdef calls until the real compinit runs at the end of .zshrc.
 typeset -gHa __compdef_queue=()
 function compdef() {
   (( $# )) && __compdef_queue+=("${(j: :)${(@q+)@}}")
 }
 
-# Wrap compinit to replay our compdef queue when called.
+# Wrap compinit to replay our compdef queue when it's called. Caching the
+# dumpfile skips most of compinit's work and makes startup much faster, but it
+# is opt-in, since a stale cache hides newly installed completions:
+#   zstyle ':z1:compinit' cache 'yes'
+# See ZSH_COMPDUMP above to move the dumpfile. Args are passed through to the
+# real compinit and win over what we set, since a later -d beats an earlier one.
 function compinit() {
   emulate -L zsh
   setopt local_options extended_glob
 
   unfunction compinit compdef
   autoload -Uz compinit
-  compinit "$@"
+
+  if ! zstyle -t ':z1:compinit' cache; then
+    compinit "$@"
+  else
+    mkdir -p $ZSH_COMPDUMP:h
+
+    # -C skips the function check (and implies -i, the security check skip).
+    if [[ -n $ZSH_COMPDUMP(#qNmh-20) ]]; then
+      compinit -C -d "$ZSH_COMPDUMP" "$@"  # Take the fast path.
+    else
+      compinit -i -d "$ZSH_COMPDUMP" "$@"
+      touch "$ZSH_COMPDUMP"  # Always reset the time when we take the slow path.
+    fi
+
+    # Recompile only if stale; atomic rename, safe under concurrent shells.
+    autoload -Uz zrecompile
+    zrecompile -q -p "$ZSH_COMPDUMP" &!
+  fi
 
   local entry
   for entry in "${__compdef_queue[@]}"; do
     eval "compdef $entry"
   done
   unset __compdef_queue
-}
-
-# Use caching for compinit.
-function compinit-fast() {
-  emulate -L zsh
-  setopt local_options extended_glob
-
-  # Location of completion file
-  typeset -g ZSH_COMPDUMP
-  : ${ZSH_COMPDUMP:=$ZSH_CACHE_DIR/ZSH_COMPDUMP-${ZSH_VERSION}}
-  mkdir -p $ZSH_COMPDUMP:h
-
-  # -C skips the function check (and implies -i, the security check skip).
-  if [[ -n $ZSH_COMPDUMP(#qNmh-20) ]]; then
-    compinit -C -d "$ZSH_COMPDUMP"  # Take the fast path.
-  else
-    compinit -i -d "$ZSH_COMPDUMP"
-    touch "$ZSH_COMPDUMP"  # Always reset the time when we take the slow path.
-  fi
-
-  # Recompile only if stale; atomic rename, safe under concurrent shells.
-  autoload -Uz zrecompile
-  zrecompile -q -p "$ZSH_COMPDUMP" &!
 }
 
 #
