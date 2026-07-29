@@ -197,16 +197,24 @@ export LESS_TERMCAP_se=${LESS_TERMCAP_se:-$reset_color}     # end standout
 export LESS_TERMCAP_ue=${LESS_TERMCAP_ue:-$reset_color}     # end underline
 export LESS_TERMCAP_me=${LESS_TERMCAP_me:-$reset_color}     # end bold/blink
 
-# Colorize commands
-alias grep="grep --color=auto"
-alias ls="ls --color=auto"
+# Colorize commands. Build on any alias already set rather than replacing it, and
+# leave it alone if it already asks for color.
+[[ "$aliases[grep]" == *--color* ]] || alias grep="${aliases[grep]:-grep} --color=auto"
+[[ "$aliases[ls]" == *--color* ]] || alias ls="${aliases[ls]:-ls} --color=auto"
 
-if (( $+commands[diff] )); then
-  alias diff="diff --color"
+# Older BSD diff has no --color, so ask before aliasing.
+if [[ "$aliases[diff]" != *--color* ]] && command diff --color /dev/null{,} &>/dev/null; then
+  alias diff="${aliases[diff]:-diff} --color"
 fi
 
 if (( $+commands[dircolors] )); then
-  source <(dircolors --sh)
+  # Like brew shellenv, this is a subprocess we can skip on later startups:
+  #   zstyle ':z1:color:init' cache 'yes'
+  if zstyle -t ':z1:color:init' cache; then
+    cached-eval dircolors dircolors --sh
+  else
+    source <(dircolors --sh)
+  fi
 else
   export CLICOLOR=${CLICOLOR:-1}
   export LSCOLORS=${LSCOLORS:-exfxcxdxbxGxDxabagacad}
