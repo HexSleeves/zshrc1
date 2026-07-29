@@ -83,3 +83,79 @@ teardown() { z1_teardown; }
   assert_success
   assert_line "reads: yes"
 }
+
+# Cursor shape per editing mode, emitted as DECSCUSR. The escapes are compared
+# in their visible form, so a failure shows the sequence rather than moving the
+# terminal's cursor around.
+@test "the cursor is a block in vi command mode and a line elsewhere" {
+  z1_zsh 'zstyle ":z1:editor" keymap vi
+    source $Z1
+    print "vicmd: ${(V)$(KEYMAP=vicmd update-cursor-style)}"
+    print "viins: ${(V)$(KEYMAP=viins update-cursor-style)}"
+    print "main:  ${(V)$(KEYMAP=main update-cursor-style)}"'
+  assert_success
+  assert_line 'vicmd: ^[[2 q'
+  assert_line 'viins: ^[[6 q'
+  assert_line 'main:  ^[[6 q'
+}
+
+@test "emacs mode gets a line cursor" {
+  z1_zsh 'source $Z1; print "emacs: ${(V)$(KEYMAP=main update-cursor-style)}"'
+  assert_success
+  assert_line 'emacs: ^[[6 q'
+}
+
+@test "each cursor style emits its own escape" {
+  z1_zsh 'source $Z1
+    for s in block block-blink underscore underscore-blink line line-blink; do
+      zstyle ":z1:editor:emacs" cursor $s
+      print "$s: ${(V)$(KEYMAP=main update-cursor-style)}"
+    done'
+  assert_success
+  assert_line 'block: ^[[2 q'
+  assert_line 'block-blink: ^[[1 q'
+  assert_line 'underscore: ^[[4 q'
+  assert_line 'underscore-blink: ^[[3 q'
+  assert_line 'line: ^[[6 q'
+  assert_line 'line-blink: ^[[5 q'
+}
+
+@test "a cursor style is picked per mode" {
+  z1_zsh 'zstyle ":z1:editor" keymap vi
+    zstyle ":z1:editor:vicmd" cursor underscore
+    zstyle ":z1:editor:viins" cursor block-blink
+    source $Z1
+    print "vicmd: ${(V)$(KEYMAP=vicmd update-cursor-style)}"
+    print "viins: ${(V)$(KEYMAP=main update-cursor-style)}"'
+  assert_success
+  assert_line 'vicmd: ^[[4 q'
+  assert_line 'viins: ^[[1 q'
+}
+
+# The emacs and viins styles are separate, so setting one leaves the other on
+# its default even though zle calls both keymaps `main`.
+@test "the emacs style does not leak into vi insert mode" {
+  z1_zsh 'zstyle ":z1:editor" keymap vi
+    zstyle ":z1:editor:emacs" cursor underscore
+    source $Z1
+    print "viins: ${(V)$(KEYMAP=main update-cursor-style)}"'
+  assert_success
+  assert_line 'viins: ^[[6 q'
+}
+
+@test "an unknown cursor style emits nothing" {
+  z1_zsh 'zstyle ":z1:editor:emacs" cursor nonsense
+    source $Z1
+    out=$(KEYMAP=main update-cursor-style)
+    print "len: ${#out}"'
+  assert_success
+  assert_line "len: 0"
+}
+
+@test "a terminal without DECSCUSR gets nothing" {
+  z1_zsh 'source $Z1
+    out=$(TERM=dumb TMUX= update-cursor-style)
+    print "len: ${#out}"'
+  assert_success
+  assert_line "len: 0"
+}

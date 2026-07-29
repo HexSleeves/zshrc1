@@ -519,28 +519,37 @@ function bindkey-multiple() {
   done
 }
 
-# Block cursor in vi cmd mode, beam in insert/emacs. Skip on terminals that
-# don't grok DECSCUSR.
+# Block cursor in vi cmd mode, beam in insert/emacs. Pick your own per mode:
+#   zstyle ':z1:editor:vicmd' cursor 'block'
+#   zstyle ':z1:editor:viins' cursor 'line'
+#   zstyle ':z1:editor:emacs' cursor 'underscore'
+# Styles are block, underscore, and line, each also with a -blink suffix.
+# Skip on terminals that don't grok DECSCUSR.
 function update-cursor-style() {
   case $TERM in
     xterm*|rxvt*|tmux*|screen*) ;;
     *) [[ -z "$TMUX" ]] && return ;;
   esac
 
+  # zle reports insert mode as `main`, which is viins under `bindkey -v` and the
+  # emacs keymap otherwise. Name it for the mode so the styles read plainly.
+  local mode=${KEYMAP:-main}
+  if [[ $mode == main ]]; then
+    [[ "$ZSH_BINDKEY" == vi ]] && mode=viins || mode=emacs
+  fi
+
   local style
-  if [[ "${ZSH_BINDKEY:-}" == vi ]]; then
-    case $KEYMAP in
-      vicmd)      style=block ;;
-      viins|main) style=line ;;
-    esac
-  else
-    style=line
+  if ! zstyle -s ":z1:editor:$mode" cursor style; then
+    [[ $mode == vicmd ]] && style=block || style=line
   fi
 
   case $style in
-    block)      printf '\e[2 q' ;;
-    underscore) printf '\e[4 q' ;;
-    line)       printf '\e[6 q' ;;
+    block-blink)      printf '\e[1 q' ;;
+    block)            printf '\e[2 q' ;;
+    underscore-blink) printf '\e[3 q' ;;
+    underscore)       printf '\e[4 q' ;;
+    line-blink)       printf '\e[5 q' ;;
+    line)             printf '\e[6 q' ;;
   esac
 }
 zle -N update-cursor-style

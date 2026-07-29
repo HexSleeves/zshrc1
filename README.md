@@ -87,22 +87,27 @@ Since `z1` sets up the basics everything else builds on, list it first.
 `z1` is configured with zstyles. Set them in `$ZDOTDIR/.zstyles`, which `z1`
 sources for you, or anywhere in your `.zshrc` before `z1` loads.
 
-| Context          | Style       | Default                                    | What it does                                                      |
-| ---------------- | ----------- | ------------------------------------------ | ----------------------------------------------------------------- |
-| `:z1:color`      | `cache`     | off                                        | Cache `dircolors --sh` output rather than running it each startup |
-| `:z1:compinit`   | `cache`     | off                                        | Cache the completion dumpfile and take `compinit`'s fast path     |
-| `:z1:compinit`   | `dumpfile`  | `$ZSH_CACHE_DIR/ZSH_COMPDUMP-$ZSH_VERSION` | Where the completion dumpfile lives                               |
-| `:z1:confd`      | `directory` | `$ZSH_CONFIG_DIR/conf.d`                   | Directory of config files to source at the end of your `.zshrc`   |
-| `:z1:editor`     | `keymap`    | `emacs`                                    | Line editor keymap. Set it to `vi` for vi mode                    |
-| `:z1:history`    | `histfile`  | `$ZSH_DATA_DIR/zsh_history`                | Where history is written                                          |
-| `:z1:history`    | `histsize`  | `50000`                                    | Events kept in the current session                                |
-| `:z1:history`    | `savehist`  | `100000`                                   | Events kept in the history file                                   |
-| `:z1:homebrew`   | `cache`     | off                                        | Cache `brew shellenv` output rather than running it each startup  |
-| `:z1:path`       | `prepath`   | `~/bin ~/sbin ~/.local/bin ~/.local/sbin`  | Entries kept at the front of `$path`                              |
-| `:z1:post_zshrc` | `debug`     | off                                        | Print each `post_zshrc` hook as it runs                           |
-| `:z1:zstyles`    | `loaded`    | off                                        | Set it yourself to stop `z1` sourcing your `.zstyles`             |
+| Context            | Style       | Default                                    | What it does                                                      |
+| ------------------ | ----------- | ------------------------------------------ | ----------------------------------------------------------------- |
+| `:z1:color`        | `cache`     | off                                        | Cache `dircolors --sh` output rather than running it each startup |
+| `:z1:compinit`     | `cache`     | off                                        | Cache the completion dumpfile and take `compinit`'s fast path     |
+| `:z1:compinit`     | `dumpfile`  | `$ZSH_CACHE_DIR/ZSH_COMPDUMP-$ZSH_VERSION` | Where the completion dumpfile lives                               |
+| `:z1:confd`        | `directory` | `$ZSH_CONFIG_DIR/conf.d`                   | Directory of config files to source at the end of your `.zshrc`   |
+| `:z1:editor`       | `keymap`    | `emacs`                                    | Line editor keymap. Set it to `vi` for vi mode                    |
+| `:z1:editor:emacs` | `cursor`    | `line`                                     | Cursor shape in emacs mode                                        |
+| `:z1:editor:vicmd` | `cursor`    | `block`                                    | Cursor shape in vi command mode                                   |
+| `:z1:editor:viins` | `cursor`    | `line`                                     | Cursor shape in vi insert mode                                    |
+| `:z1:history`      | `histfile`  | `$ZSH_DATA_DIR/zsh_history`                | Where history is written                                          |
+| `:z1:history`      | `histsize`  | `50000`                                    | Events kept in the current session                                |
+| `:z1:history`      | `savehist`  | `100000`                                   | Events kept in the history file                                   |
+| `:z1:homebrew`     | `cache`     | off                                        | Cache `brew shellenv` output rather than running it each startup  |
+| `:z1:path`         | `prepath`   | `~/bin ~/sbin ~/.local/bin ~/.local/sbin`  | Entries kept at the front of `$path`                              |
+| `:z1:post_zshrc`   | `debug`     | off                                        | Print each `post_zshrc` hook as it runs                           |
+| `:z1:zstyles`      | `loaded`    | off                                        | Set it yourself to stop `z1` sourcing your `.zstyles`             |
 
-Of the `prepath` defaults, only the directories that exist are used.
+Of the `prepath` defaults, only the directories that exist are used. Cursor
+shapes are `block`, `underscore`, and `line`, each also with a `-blink`
+suffix, and are only emitted on terminals that understand DECSCUSR.
 
 ```zsh
 # .zstyles
