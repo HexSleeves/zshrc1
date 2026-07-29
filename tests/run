@@ -1,0 +1,27 @@
+#!/usr/bin/env zsh
+# z1 test runner.
+#
+# usage: tests/run [file...]
+#   (no args)  every file in tests/bats
+#   file...    only those files
+
+0=${(%):-%x}
+setopt extended_glob
+
+local prjdir=${0:A:h:h}
+cd $prjdir || exit 1
+
+(( $+commands[bats] )) || {
+  print -ru2 "tests/run: fatal: bats not found. brew install bats-core"
+  exit 127
+}
+
+local -a testfiles=($@)
+(( $#testfiles )) || testfiles=($prjdir/tests/bats/*.bats(N))
+
+(( $#testfiles )) || {
+  print -ru2 "tests/run: no test files found"
+  exit 1
+}
+
+exec bats $testfiles
