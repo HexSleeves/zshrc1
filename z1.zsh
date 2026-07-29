@@ -562,6 +562,41 @@ bindkey -M viins '^[s' prepend-sudo
 autoload -Uz run-help
 alias help=run-help
 
+# Fill in commands everyone expects but not every platform ships, so the same
+# config works on a Mac laptop and whatever the server is running.
+if (( ! $+commands[open] )); then
+  if [[ "$OSTYPE" == cygwin* ]]; then
+    alias open='cygstart'
+  elif [[ "$OSTYPE" == linux-android ]]; then
+    alias open='termux-open'
+  elif (( $+commands[xdg-open] )); then
+    alias open='xdg-open'
+  fi
+fi
+
+if (( ! $+commands[pbcopy] )); then
+  if [[ "$OSTYPE" == cygwin* ]]; then
+    alias pbcopy='tee > /dev/clipboard'
+    alias pbpaste='cat /dev/clipboard'
+  elif [[ "$OSTYPE" == linux-android ]]; then
+    alias pbcopy='termux-clipboard-set'
+    alias pbpaste='termux-clipboard-get'
+  elif (( $+commands[wl-copy] && $+commands[wl-paste] )); then
+    alias pbcopy='wl-copy'
+    alias pbpaste='wl-paste'
+  elif [[ -n "$DISPLAY" ]] && (( $+commands[xclip] )); then
+    alias pbcopy='xclip -selection clipboard -in'
+    alias pbpaste='xclip -selection clipboard -out'
+  elif [[ -n "$DISPLAY" ]] && (( $+commands[xsel] )); then
+    alias pbcopy='xsel --clipboard --input'
+    alias pbpaste='xsel --clipboard --output'
+  fi
+fi
+
+if (( ! $+commands[hd] )) && (( $+commands[hexdump] )); then
+  alias hd='hexdump -C'
+fi
+
 # Lazy-load my functions.
 ZFUNCDIR=${ZFUNCDIR:-$ZSH_CONFIG_DIR/functions}
 for _zfndir in $ZFUNCDIR(-/FN) $ZFUNCDIR/*(-/FN); do
