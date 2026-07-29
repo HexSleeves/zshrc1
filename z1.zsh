@@ -17,6 +17,33 @@ mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
 [ -r $ZSH_CONFIG_DIR/.zstyles ] \
 && . $ZSH_CONFIG_DIR/.zstyles
 
+# Cache the output of a command that prints Zsh code, so later shells source a
+# file instead of paying to run it again. Cached for 20 hours in $ZSH_CACHE_DIR,
+# keyed by the name you pass, eg:
+#   cached-eval brew-shellenv brew shellenv
+# Only use this for commands whose output is stable. Delete the cache file to
+# force a refresh.
+function cached-eval() {
+  emulate -L zsh
+  setopt local_options extended_glob
+  (( $# >= 2 )) || return 1
+
+  local cmdname=$1; shift
+  local cachefile=$ZSH_CACHE_DIR/cached-eval/${cmdname}.zsh
+
+  # Rebuild via a temp file so a failed command doesn't poison the cache.
+  if [[ -z $cachefile(#qNmh-20) ]]; then
+    mkdir -p $cachefile:h
+    if ! "$@" >| $cachefile.$$; then
+      command rm -f $cachefile.$$
+      return 1
+    fi
+    command mv -f $cachefile.$$ $cachefile
+  fi
+
+  source $cachefile
+}
+
 #
 # Paths
 #
@@ -49,8 +76,15 @@ function repath() {
 
 # Setup homebrew if it exists on the system.
 if (( $+commands[brew] )); then
-  # Initialize homebrew.
-  source <(brew shellenv)
+  # Initialize homebrew. `brew shellenv` is a slow subprocess, so its output can
+  # be cached, but that's opt-in since the cache hides a moved or upgraded
+  # brew until it expires:
+  #   zstyle ':z1:homebrew:init' cache 'yes'
+  if zstyle -t ':z1:homebrew:init' cache; then
+    cached-eval brew-shellenv brew shellenv
+  else
+    source <(brew shellenv)
+  fi
 
   # Preserve the desired path order.
   path=($prepath $path)
