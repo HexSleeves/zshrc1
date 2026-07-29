@@ -13,30 +13,53 @@ ZSH_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
 ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
 mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
 
-# Set any zstyles you might use for configuration. To source .zstyles yourself,
-# at whatever point suits you, claim the job before sourcing z1:
+# Set any zstyles you might use for configuration. To source .zstyles yourself
+# instead of here set the following zstyle:
 #   zstyle ':z1:zstyles' loaded 'yes'
-# z1 sets the same style once it loads them, so sourcing z1 twice, or sourcing
-# .zstyles before z1, won't load them twice.
 if ! zstyle -t ':z1:zstyles' loaded; then
   [ -r $ZSH_CONFIG_DIR/.zstyles ] \
   && . $ZSH_CONFIG_DIR/.zstyles
   zstyle ':z1:zstyles' loaded 'yes'
 fi
 
-# Cache the output of a command that prints Zsh code, so later shells source a
-# file instead of paying to run it again. Cached for 20 hours in $ZSH_CACHE_DIR,
-# keyed by the name you pass, eg:
-#   cached-eval brew-shellenv brew shellenv
-# Only use this for commands whose output is stable. Delete the cache file to
-# force a refresh.
+# Run a command that prints Zsh code and source its output, keeping a cached copy so
+# later shells benefit.
+#   cached-eval brew shellenv
+# Caches live in $ZSH_CACHE_DIR and lasts 20 hours. Be careful to only cache commands
+# with stable output. To reset the cache, use --clear:
+#   cached-eval --clear brew shellenv  # just clear brew shellenv
+#   cached-eval --clear                # clear all
 function cached-eval() {
   emulate -L zsh
   setopt local_options extended_glob
-  (( $# >= 2 )) || return 1
 
-  local cmdname=$1; shift
-  local cachefile=$ZSH_CACHE_DIR/cached-eval/${cmdname}.zsh
+  local cachedir=$ZSH_CACHE_DIR/cached-eval
+  [[ -n "$ZSH_CACHE_DIR" ]] || return 1
+
+  local -i clear=0
+  [[ "$1" == --clear ]] && { clear=1; shift }
+
+  # A bare --clear takes out every cache.
+  if (( clear && ! $# )); then
+    command rm -f $cachedir/*(N.)
+    return
+  fi
+  (( $# )) || return 1
+
+  # Name the cache file after the command, with a djb2 hash of the whole command
+  # line so that different arguments, or two same-named commands in different
+  # places, each get their own cache.
+  local c
+  local -i hash=5381
+  for c in ${(s::)${(j: :)@}}; do
+    (( hash = (hash * 33 + #c) % 4294967296 ))
+  done
+  local cachefile=$cachedir/${1:t}-${hash}.zsh
+
+  if (( clear )); then
+    command rm -f $cachefile
+    return
+  fi
 
   # Rebuild via a temp file so a failed command doesn't poison the cache.
   if [[ -z $cachefile(#qNmh-20) ]]; then
@@ -89,12 +112,8 @@ function repath() {
 
 # Setup homebrew if it exists on the system.
 if (( $+commands[brew] )); then
-  # Initialize homebrew. `brew shellenv` is a slow subprocess, so its output can
-  # be cached, but that's opt-in since the cache hides a moved or upgraded
-  # brew until it expires:
-  #   zstyle ':z1:homebrew:init' cache 'yes'
-  if zstyle -t ':z1:homebrew:init' cache; then
-    cached-eval brew-shellenv brew shellenv
+  if zstyle -t ':z1:homebrew' cache; then
+    cached-eval brew shellenv
   else
     source <(brew shellenv)
   fi
@@ -208,10 +227,8 @@ if [[ "$aliases[diff]" != *--color* ]] && command diff --color /dev/null{,} &>/d
 fi
 
 if (( $+commands[dircolors] )); then
-  # Like brew shellenv, this is a subprocess we can skip on later startups:
-  #   zstyle ':z1:color:init' cache 'yes'
-  if zstyle -t ':z1:color:init' cache; then
-    cached-eval dircolors dircolors --sh
+  if zstyle -t ':z1:color' cache; then
+    cached-eval dircolors --sh
   else
     source <(dircolors --sh)
   fi
