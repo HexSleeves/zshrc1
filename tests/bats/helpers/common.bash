@@ -25,6 +25,9 @@ z1_setup() {
   }
 
   TEST_HOME="$(mktemp -d "${TMPDIR:-/tmp}/z1-test.XXXXXX")" || return 1
+  # $TMPDIR often ends in a slash, and may be a symlink. Normalize, or $PWD and
+  # $HOME never compare equal and nothing shortens paths to ~.
+  TEST_HOME="$(cd "$TEST_HOME" && pwd -P)" || return 1
   mkdir -p "$TEST_HOME/bin" \
            "$TEST_HOME/.config/zsh" \
            "$TEST_HOME/.cache" \
@@ -32,10 +35,9 @@ z1_setup() {
 }
 
 z1_teardown() {
-  # Only ever delete a mktemp -d we made, under a temp root.
+  # Only ever delete a directory named the way z1_setup names them.
   case "$TEST_HOME" in
-    /tmp/z1-test.*|/private/tmp/z1-test.*|"${TMPDIR%/}"/z1-test.*)
-      rm -rf "$TEST_HOME" ;;
+    */z1-test.??????) rm -rf "$TEST_HOME" ;;
   esac
 }
 
@@ -120,6 +122,13 @@ refute_line() {
 assert_output_contains() {
   [[ "$output" == *"$1"* ]] && return 0
   echo "expected output to contain: $1" >&2
+  _dump_output
+  return 1
+}
+
+refute_output_matches() {
+  [[ ! "$output" =~ $1 ]] && return 0
+  echo "expected output not to match: $1" >&2
   _dump_output
   return 1
 }

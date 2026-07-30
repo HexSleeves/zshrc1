@@ -26,13 +26,17 @@ function prompt_pwd {
 function +vi-git_status {
   # Check for untracked files or updated submodules since vcs_info does not.
   if [[ -n $(git ls-files --other --exclude-standard 2> /dev/null) ]]; then
-    hook_com[unstaged]='%F{red}•%f'
+    hook_com[unstaged]="%F{${_prompt_z1_colors[red]}}${_prompt_z1_chars[dirty]}%f"
   fi
 
   ### git: Show ⇡N/⇣N when your local branch is ahead-of or behind remote HEAD.
   # Make sure you have added misc to your 'formats':  %m
   local ahead behind
   local -a gitstatus
+
+  # Cleared first: the git backend fills misc with rebase patch state, and the
+  # action in actionformats already says a rebase is underway.
+  hook_com[misc]=''
 
   # Exit early in case the worktree is on a detached HEAD
   git rev-parse ${hook_com[branch]}@{upstream} >/dev/null 2>&1 || return 0
@@ -47,15 +51,37 @@ function +vi-git_status {
   (( $ahead )) && gitstatus+=( "⇡${ahead}" )
   (( $behind )) && gitstatus+=( "⇣${behind}" )
 
-  hook_com[misc]+=${(j:/:)gitstatus}
+  hook_com[misc]=${(j:/:)gitstatus}
 }
 
 function prompt_z1_precmd {
   setopt local_options
   unsetopt xtrace ksh_arrays
   _prompt_z1_pwd=$(prompt_pwd)
+
+  # Split off the last component so it can be highlighted on its own.
+  if [[ "$_prompt_z1_pwd" == */* ]]; then
+    _prompt_z1_pwd_head="${_prompt_z1_pwd%/*}/"
+    _prompt_z1_pwd_tail="${_prompt_z1_pwd##*/}"
+  else
+    _prompt_z1_pwd_head=''
+    _prompt_z1_pwd_tail="$_prompt_z1_pwd"
+  fi
   (( $+functions[async-task] )) || vcs_info
-  [[ -n "$_prompt_z1_transient" ]] && PROMPT=$_prompt_z1_full
+
+  # Re-read the transient style each time, so turning it on or off takes effect
+  # from the next prompt rather than only at setup.
+  if zstyle -t ':z1:prompt' transient; then
+    _prompt_z1_transient="%F{${_prompt_z1_colors[cyan]}}${_prompt_z1_chars[success]}%f "
+    [[ "$widgets[accept-line]" == user:prompt_z1_accept_line ]] \
+      || zle -N accept-line prompt_z1_accept_line
+  else
+    _prompt_z1_transient=
+    [[ "$widgets[accept-line]" == user:prompt_z1_accept_line ]] \
+      && zle -A .accept-line accept-line
+  fi
+
+  PROMPT=$_prompt_z1_full
 }
 
 # Collapse an accepted line to just the character.
@@ -139,8 +165,8 @@ function prompt_z1_setup {
   zstyle ':vcs_info:*' check-for-changes true
   zstyle ':vcs_info:*' stagedstr "%F{${_prompt_z1_colors[green]}}${_prompt_z1_chars[dirty]}%f"
   zstyle ':vcs_info:*' unstagedstr "%F{${_prompt_z1_colors[yellow]}}${_prompt_z1_chars[dirty]}%f"
-  zstyle ':vcs_info:*' formats '%b%c%u%m'
-  zstyle ':vcs_info:*' actionformats "%b%c%u%m|%F{cyan}%a%f"
+  zstyle ':vcs_info:*' formats "%F{${_prompt_z1_colors[magenta]}}%b%f%c%u%m"
+  zstyle ':vcs_info:*' actionformats "%F{${_prompt_z1_colors[magenta]}}%b%f%c%u%m|%F{${_prompt_z1_colors[cyan]}}%a%f"
   zstyle ':vcs_info:git*+set-message:*' hooks git_status
 
   # Keymap picks the character, exit status picks the color, both resolved when
@@ -149,7 +175,9 @@ function prompt_z1_setup {
   local pchar='${_prompt_z1_chars[${KEYMAP:-main}]:-%(?.$_prompt_z1_chars[success].$_prompt_z1_chars[error])}'
 
   # Define prompts.
-  PROMPT='%F{${_prompt_z1_colors[blue]}}$_prompt_z1_pwd%f '$pcolor$pchar'%f '
+  PROMPT='%F{${_prompt_z1_colors[blue]}}$_prompt_z1_pwd_head%f'
+  PROMPT+='%B%F{${_prompt_z1_colors[cyan]}}$_prompt_z1_pwd_tail%f%b '
+  PROMPT+=$pcolor$pchar'%f '
   if (( $+functions[async-task] )); then
     async-task prompt_z1_vcs prompt_z1_vcs
     RPROMPT='${async_output[prompt_z1_vcs]}'
@@ -157,14 +185,10 @@ function prompt_z1_setup {
     RPROMPT='${vcs_info_msg_0_}'
   fi
 
-  # An accepted line can collapse to just the character, in blue rather than the
-  # status color, so scrollback stays quiet:
+  # An accepted line can collapse to just the character, in cyan rather than the
+  # status color, so scrollback stays quiet. precmd picks this up:
   #   zstyle ':z1:prompt' transient 'yes'
   typeset -g _prompt_z1_full=$PROMPT _prompt_z1_transient=
-  if zstyle -t ':z1:prompt' transient; then
-    _prompt_z1_transient="%F{${_prompt_z1_colors[blue]}}${_prompt_z1_chars[success]}%f "
-    zle -N accept-line prompt_z1_accept_line
-  fi
 }
 
 function prompt_z1_preview {

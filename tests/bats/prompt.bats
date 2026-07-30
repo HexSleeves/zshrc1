@@ -93,9 +93,9 @@ setup_chars() {
     print "viins: $(render 0 viins)"
     print "vicmd: $(render 0 vicmd)"'
   assert_success
-  assert_output_contains "main:  ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
-  assert_output_contains "viins: ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
-  assert_output_contains "vicmd: ^[[38;5;39m^[[39m ^[[38;5;76mV^[[39m"
+  assert_output_contains "main:  ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76mS^[[39m"
+  assert_output_contains "viins: ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76mS^[[39m"
+  assert_output_contains "vicmd: ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76mV^[[39m"
 }
 
 # zle also reports isearch and listscroll. Looking the keymap up in the
@@ -104,10 +104,10 @@ setup_chars() {
   z1_zsh "$(setup_chars)"'
     for k in isearch listscroll nonsense ""; do print "[$k] $(render 0 $k)"; done'
   assert_success
-  assert_output_contains "[isearch] ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
-  assert_output_contains "[listscroll] ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
-  assert_output_contains "[nonsense] ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
-  assert_output_contains "[] ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
+  assert_output_contains "[isearch] ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76mS^[[39m"
+  assert_output_contains "[listscroll] ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76mS^[[39m"
+  assert_output_contains "[nonsense] ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76mS^[[39m"
+  assert_output_contains "[] ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76mS^[[39m"
 }
 
 @test "a failed command switches to the error character in red" {
@@ -115,8 +115,8 @@ setup_chars() {
     print "ok:   $(render 0 main)"
     print "fail: $(render 1 main)"'
   assert_success
-  assert_output_contains "ok:   ^[[38;5;39m^[[39m ^[[38;5;76mS^[[39m"
-  assert_output_contains "fail: ^[[38;5;39m^[[39m ^[[38;5;160mE^[[39m"
+  assert_output_contains "ok:   ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76mS^[[39m"
+  assert_output_contains "fail: ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;160mE^[[39m"
 }
 
 # In command mode the keymap still owns the character, but the color follows the
@@ -126,8 +126,8 @@ setup_chars() {
     print "ok:   $(render 0 vicmd)"
     print "fail: $(render 1 vicmd)"'
   assert_success
-  assert_output_contains "ok:   ^[[38;5;39m^[[39m ^[[38;5;76mV^[[39m"
-  assert_output_contains "fail: ^[[38;5;39m^[[39m ^[[38;5;160mV^[[39m"
+  assert_output_contains "ok:   ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76mV^[[39m"
+  assert_output_contains "fail: ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;160mV^[[39m"
 }
 
 @test "the color styles are honored" {
@@ -138,8 +138,8 @@ setup_chars() {
     print "ok:   $(render 0 main)"
     print "fail: $(render 1 main)"'
   assert_success
-  assert_output_contains "ok:   ^[[38;5;39m^[[39m ^[[38;5;46mS^[[39m"
-  assert_output_contains "fail: ^[[38;5;39m^[[39m ^[[38;5;196mE^[[39m"
+  assert_output_contains "ok:   ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;46mS^[[39m"
+  assert_output_contains "fail: ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;196mE^[[39m"
 }
 
 @test "disabling unicode gives ASCII characters" {
@@ -150,8 +150,8 @@ setup_chars() {
     print "ok:    $(render 0 main)"
     print "vicmd: $(render 0 vicmd)"'
   assert_success
-  assert_output_contains "ok:    ^[[38;5;39m^[[39m ^[[38;5;76m%^[[39m"
-  assert_output_contains "vicmd: ^[[38;5;39m^[[39m ^[[38;5;76mV^[[39m"
+  assert_output_contains "ok:    ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76m%^[[39m"
+  assert_output_contains "vicmd: ^[[38;5;39m^[[39m^[[1m^[[38;5;37m^[[39m^[[0m ^[[38;5;76mV^[[39m"
 }
 
 # prompt_z1_preview used to call editor-info, a prezto function z1 does not have.
@@ -222,9 +222,11 @@ setup_chars() {
 # Transient prompt collapses an accepted line to the character alone. It cannot
 # be observed without a terminal repainting, so these check the parts: the
 # widget binding, the collapsed string, and precmd putting the full prompt back.
+# The style is read in precmd, so these call it rather than only loading.
 @test "transient prompt is off by default" {
   z1_zsh 'source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
+    prompt_z1_precmd
     print "widget: ${widgets[accept-line]:-builtin}"
     print "transient: [$_prompt_z1_transient]"'
   assert_success
@@ -236,31 +238,70 @@ setup_chars() {
   z1_zsh 'zstyle ":z1:prompt" transient yes
     source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
+    prompt_z1_precmd
     print "widget: ${widgets[accept-line]}"'
   assert_success
   assert_line "widget: user:prompt_z1_accept_line"
 }
 
-@test "the collapsed prompt is the character in blue, with no path" {
+# Setting the style after the prompt is already running has to work, since that
+# is how anyone tries it out.
+@test "the style can be turned on after the prompt is initialized" {
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    prompt_z1_precmd
+    print "before: ${widgets[accept-line]:-builtin}"
+    zstyle ":z1:prompt" transient yes
+    prompt_z1_precmd
+    print "after: ${widgets[accept-line]:-builtin}"'
+  assert_success
+  assert_line "before: builtin"
+  assert_line "after: user:prompt_z1_accept_line"
+}
+
+@test "the style can be turned off again" {
+  z1_zsh 'zstyle ":z1:prompt" transient yes
+    source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    prompt_z1_precmd
+    print "on: ${widgets[accept-line]:-builtin}"
+    zstyle ":z1:prompt" transient no
+    prompt_z1_precmd
+    print "off: ${widgets[accept-line]:-builtin}"
+    print "transient: [$_prompt_z1_transient]"
+    zstyle -d ":z1:prompt" transient
+    zstyle ":z1:prompt" transient yes
+    prompt_z1_precmd
+    print "back on: ${widgets[accept-line]:-builtin}"'
+  assert_success
+  assert_line "on: user:prompt_z1_accept_line"
+  assert_line "off: builtin"
+  assert_line "transient: []"
+  assert_line "back on: user:prompt_z1_accept_line"
+}
+
+@test "the collapsed prompt is the character in cyan, with no path" {
   z1_zsh 'zstyle ":z1:prompt" transient yes
     zstyle ":z1:prompt:character" success S
     source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
+    prompt_z1_precmd
     o=$(print -Pn -- $_prompt_z1_transient); print "transient: ${(V)o}"'
   assert_success
-  assert_line "transient: ^[[38;5;39mS^[[39m "
+  assert_line "transient: ^[[38;5;37mS^[[39m "
 }
 
-# Blue regardless of exit status, so scrollback has no red in it.
+# Cyan regardless of exit status, so scrollback has no red in it.
 @test "the collapsed prompt keeps its color after a failure" {
   z1_zsh 'zstyle ":z1:prompt" transient yes
     zstyle ":z1:prompt:character" success S
     zstyle ":z1:prompt:character" error E
     source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
-    ( exit 1 ); o=$(print -Pn -- $_prompt_z1_transient); print "transient: ${(V)o}"'
+    ( exit 1 ); prompt_z1_precmd
+    o=$(print -Pn -- $_prompt_z1_transient); print "transient: ${(V)o}"'
   assert_success
-  assert_line "transient: ^[[38;5;39mS^[[39m "
+  assert_line "transient: ^[[38;5;37mS^[[39m "
 }
 
 @test "precmd puts the full prompt back after a collapse" {
@@ -274,12 +315,118 @@ setup_chars() {
   assert_line "restored: yes"
 }
 
-@test "precmd leaves PROMPT alone when transient is off" {
+# Unbinding only reverts a widget z1 installed, so another plugin's accept-line
+# wrapper is left alone.
+@test "another accept-line wrapper is not unbound" {
   z1_zsh 'source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
-    PROMPT="custom"
+    function other-accept-line { zle .accept-line }
+    zle -N accept-line other-accept-line
     prompt_z1_precmd
-    print "prompt: $PROMPT"'
+    print "widget: ${widgets[accept-line]}"'
   assert_success
-  assert_line "prompt: custom"
+  assert_line "widget: user:other-accept-line"
+}
+
+@test "the branch name is magenta" {
+  mkdir -p "$TEST_HOME/repo"
+  git -C "$TEST_HOME/repo" init -q
+  git -C "$TEST_HOME/repo" config user.email t@example.com
+  git -C "$TEST_HOME/repo" config user.name tester
+  : >"$TEST_HOME/repo/file"
+  git -C "$TEST_HOME/repo" add file
+  git -C "$TEST_HOME/repo" commit -qm init
+
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    builtin cd $HOME/repo
+    prompt_z1_precmd; async-run; async-wait
+    o=$(print -Pn -- $RPROMPT); print "branch: ${(V)o}"'
+  assert_success
+  assert_output_contains "branch: ^[[38;5;168m"
+}
+
+# The last path component is highlighted on its own: leading part blue, final
+# component bold and cyan.
+@test "the last path component is bold cyan and the rest blue" {
+  mkdir -p "$TEST_HOME/one/two/three"
+
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    builtin cd $HOME/one/two/three
+    prompt_z1_precmd
+    print "head: [$_prompt_z1_pwd_head]"
+    print "tail: [$_prompt_z1_pwd_tail]"
+    o=$(print -Pn -- $PROMPT); print "rendered: ${(V)o}"'
+  assert_success
+  assert_line "head: [~/o/t/]"
+  assert_line "tail: [three]"
+  assert_output_contains "^[[38;5;39m~/o/t/^[[39m^[[1m^[[38;5;37mthree^[[39m^[[0m"
+}
+
+@test "home is a single bold cyan component" {
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    builtin cd $HOME
+    prompt_z1_precmd
+    print "head: [$_prompt_z1_pwd_head]"
+    print "tail: [$_prompt_z1_pwd_tail]"'
+  assert_success
+  assert_line "head: []"
+  assert_line "tail: [~]"
+}
+
+@test "root keeps its slash in the leading part" {
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    builtin cd /
+    prompt_z1_precmd
+    print "head: [$_prompt_z1_pwd_head]"
+    print "tail: [$_prompt_z1_pwd_tail]"'
+  assert_success
+  assert_line "head: [/]"
+  assert_line "tail: []"
+}
+
+# vcs_info's git backend fills %m with rebase patch state, including a raw sha.
+# The hook clears it, since actionformats already names the action.
+@test "a rebase does not leak patch state into the prompt" {
+  local r="$TEST_HOME/repo"
+  git -C "$TEST_HOME" init -q repo
+  git -C "$r" config user.email t@example.com
+  git -C "$r" config user.name tester
+  echo one >"$r/f"; git -C "$r" add f; git -C "$r" commit -qm one
+  git -C "$r" checkout -q -b side
+  echo side >"$r/f"; git -C "$r" commit -qam side
+  git -C "$r" checkout -q -
+  echo main >"$r/f"; git -C "$r" commit -qam main
+  git -C "$r" rebase side >/dev/null 2>&1 || true
+
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    builtin cd $HOME/repo
+    prompt_z1_precmd; async-run; async-wait
+    print "rprompt: ${(V)$(print -Pn -- $RPROMPT)}"'
+  assert_success
+  assert_output_contains "rebase"
+  refute_output_matches "applied"
+  refute_output_matches "[0-9a-f]{40}"
+}
+
+@test "the dirty marker uses the palette red, not basic red" {
+  local r="$TEST_HOME/repo"
+  git -C "$TEST_HOME" init -q repo
+  git -C "$r" config user.email t@example.com
+  git -C "$r" config user.name tester
+  : >"$r/tracked"; git -C "$r" add tracked; git -C "$r" commit -qm init
+  : >"$r/untracked"
+
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    builtin cd $HOME/repo
+    prompt_z1_precmd; async-run; async-wait
+    print "rprompt: ${(V)$(print -Pn -- $RPROMPT)}"'
+  assert_success
+  assert_output_contains "^[[38;5;160m"
+  refute_output_matches '\^\[\[31m'
 }
