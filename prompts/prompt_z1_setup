@@ -55,6 +55,14 @@ function prompt_z1_precmd {
   unsetopt xtrace ksh_arrays
   _prompt_z1_pwd=$(prompt_pwd)
   (( $+functions[async-task] )) || vcs_info
+  [[ -n "$_prompt_z1_transient" ]] && PROMPT=$_prompt_z1_full
+}
+
+# Collapse an accepted line to just the character.
+function prompt_z1_accept_line {
+  PROMPT=$_prompt_z1_transient
+  zle .reset-prompt
+  zle .accept-line
 }
 
 # What the async worker runs. vcs_info fills a variable, so print it.
@@ -147,6 +155,15 @@ function prompt_z1_setup {
     RPROMPT='${async_output[prompt_z1_vcs]}'
   else
     RPROMPT='${vcs_info_msg_0_}'
+  fi
+
+  # An accepted line can collapse to just the character, in blue rather than the
+  # status color, so scrollback stays quiet:
+  #   zstyle ':z1:prompt' transient 'yes'
+  typeset -g _prompt_z1_full=$PROMPT _prompt_z1_transient=
+  if zstyle -t ':z1:prompt' transient; then
+    _prompt_z1_transient="%F{${_prompt_z1_colors[blue]}}${_prompt_z1_chars[success]}%f "
+    zle -N accept-line prompt_z1_accept_line
   fi
 }
 

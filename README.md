@@ -142,6 +142,7 @@ The bundled `z1` prompt reads these:
 | Context                | Style                                                          | Default           | What it does                                                              |
 | ---------------------- | -------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------- |
 | `:z1:prompt`           | `pwd-length`                                                   | short             | `full` for `$PWD`, `long` for a `~`-shortened path, otherwise abbreviated |
+| `:z1:prompt`           | `transient`                                                    | off               | Collapse an accepted line to just the prompt character                    |
 | `:z1:prompt:character` | `success` `error` `vicmd` `stash` `dirty` `ahead` `behind`     | `❱ ❱ ❰ ☰ • ⇡ ⇣`   | Symbols the prompt is built from                                          |
 | `:z1:prompt:colors`    | `black` `red` `green` `yellow` `blue` `magenta` `cyan` `white` | 256-color palette | Color numbers the prompt is built from                                    |
 | `:z1:prompt:unicode`   | `disable`                                                      | off               | Fall back to ASCII symbols                                                |

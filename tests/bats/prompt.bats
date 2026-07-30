@@ -218,3 +218,68 @@ setup_chars() {
   assert_output_contains "vcs: "
   refute_line "vcs: "
 }
+
+# Transient prompt collapses an accepted line to the character alone. It cannot
+# be observed without a terminal repainting, so these check the parts: the
+# widget binding, the collapsed string, and precmd putting the full prompt back.
+@test "transient prompt is off by default" {
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    print "widget: ${widgets[accept-line]:-builtin}"
+    print "transient: [$_prompt_z1_transient]"'
+  assert_success
+  assert_line "widget: builtin"
+  assert_line "transient: []"
+}
+
+@test "the transient zstyle binds accept-line" {
+  z1_zsh 'zstyle ":z1:prompt" transient yes
+    source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    print "widget: ${widgets[accept-line]}"'
+  assert_success
+  assert_line "widget: user:prompt_z1_accept_line"
+}
+
+@test "the collapsed prompt is the character in blue, with no path" {
+  z1_zsh 'zstyle ":z1:prompt" transient yes
+    zstyle ":z1:prompt:character" success S
+    source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    o=$(print -Pn -- $_prompt_z1_transient); print "transient: ${(V)o}"'
+  assert_success
+  assert_line "transient: ^[[38;5;39mS^[[39m "
+}
+
+# Blue regardless of exit status, so scrollback has no red in it.
+@test "the collapsed prompt keeps its color after a failure" {
+  z1_zsh 'zstyle ":z1:prompt" transient yes
+    zstyle ":z1:prompt:character" success S
+    zstyle ":z1:prompt:character" error E
+    source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    ( exit 1 ); o=$(print -Pn -- $_prompt_z1_transient); print "transient: ${(V)o}"'
+  assert_success
+  assert_line "transient: ^[[38;5;39mS^[[39m "
+}
+
+@test "precmd puts the full prompt back after a collapse" {
+  z1_zsh 'zstyle ":z1:prompt" transient yes
+    source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    PROMPT=$_prompt_z1_transient
+    prompt_z1_precmd
+    print "restored: $([[ $PROMPT == $_prompt_z1_full ]] && print yes || print no)"'
+  assert_success
+  assert_line "restored: yes"
+}
+
+@test "precmd leaves PROMPT alone when transient is off" {
+  z1_zsh 'source $Z1
+    autoload -Uz promptinit && promptinit && prompt z1
+    PROMPT="custom"
+    prompt_z1_precmd
+    print "prompt: $PROMPT"'
+  assert_success
+  assert_line "prompt: custom"
+}
