@@ -39,6 +39,10 @@ Feel free to use it as-is, build off it, or fork it and make it entirely your ow
 - Configure Zsh built-in completion system with cached `compinit` for fast startup
 - Use built-in Zsh prompt system, with prompts found in your own `prompts/` directory
 - Initialize Homebrew automatically when present
+- Every decision is reversible: z1 only uses plain Zsh builtins, so anything it sets can be
+  changed or undone after you source it. `unsetopt` an option, `unalias` an alias,
+  rebind a key. Values you already exported win, and zstyles let you opt out ahead of
+  time
 
 ## Installation
 
@@ -160,6 +164,43 @@ be set, or are conventional names from elsewhere.
 | `ZSH_CONFIG_DIR` | `$ZDOTDIR`, else `$XDG_CONFIG_HOME/zsh` | Where your config lives                         |
 | `ZSH_DATA_DIR`   | `$XDG_DATA_HOME/zsh`                    | Where data that should persist lives            |
 | `ZSH_CACHE_DIR`  | `$XDG_CACHE_HOME/zsh`                   | Where throwaway data lives                      |
+
+### I don't like a setting
+
+Nothing `z1` does is locked in. It uses plain Zsh builtins in one pass, so the
+last word is always yours. Undo anything you disagree with after the `source`
+line in your `.zshrc`, or from a file in `conf.d`, which runs later still.
+
+`z1` turns off shared history, for instance, because most people want each
+terminal to keep its own. If you want the other behavior, turn it back on:
+
+```zsh
+# .zshrc, after z1 loads
+setopt share_history
+```
+
+That idea works for anything `z1` sets:
+
+| You dislike        | Undo it with                                        |
+| ------------------ | --------------------------------------------------- |
+| An option          | `setopt` or `unsetopt` the option again             |
+| An alias           | `unalias grep`, or redefine it                      |
+| A key binding      | `bindkey` the sequence to a different widget        |
+| A completion style | `zstyle` the same context again with your value     |
+| An environment var | `export PAGER=bat`                                  |
+
+Environment variables are a special case worth knowing: `z1` only fills in the
+ones you have not already set, so exporting `EDITOR` or `LESS` before `z1`
+loads is enough. The same is true of `ZSH_BINDKEY`, `ZSH_COMPDUMP`, and the
+directory variables in the table above.
+
+For settings with a zstyle, prefer the zstyle. It is read as `z1` loads, so the
+setting is never applied in the first place rather than applied and then
+reversed.
+
+If you find yourself undoing a lot, remember `z1` is one file. Copy it into your
+own config and cut the parts you don't want. I tried to be very light on enforcing
+my opinions and focused more on creating a better out-of-the-box Zsh starter config.
 
 [antidote]: https://antidote.sh
 [fish]: https://fishshell.com
