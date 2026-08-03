@@ -281,7 +281,7 @@ zstyle ':completion:*' menu select
 zstyle ':completion:*' group-name ''
 zstyle ':completion:*' verbose yes
 zstyle ':completion:*:matches' group 'yes'
-zstyle ':completion:*:descriptions' format ' %F{purple}-- %d --%f'
+zstyle ':completion:*:descriptions' format ' %F{magenta}-- %d --%f'
 zstyle ':completion:*:warnings' format ' %F{yellow}-- no matches found --%f'
 
 # Case-insensitive, then partial-word, then substring matching.
