@@ -3,3 +3,6 @@
 *.zwc.old
 .*
 !.github/
+!.editorconfig
+!.gitignore
+!.bumpversion.cfg

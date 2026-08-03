@@ -7,6 +7,9 @@
 
 0=${(%):-%N}
 
+# The z1 release this file came from. Managed by bump2version.
+Z1_VERSION=2.0.1
+
 # Set Zsh location vars.
 ZSH_CONFIG_DIR="${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
 ZSH_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh"

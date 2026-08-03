@@ -1,7 +1,7 @@
 # z1
 
 [![MIT License](https://img.shields.io/badge/license-MIT-007EC7.svg)](/LICENSE)
-![version](https://img.shields.io/badge/version-v2.0.0-orange)
+![version](https://img.shields.io/badge/version-v2.0.1-orange)
 
 > First things first - start your .zshrc off right
 
