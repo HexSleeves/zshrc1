@@ -128,6 +128,25 @@ EOS
   assert_line "loaded: custom"
 }
 
+@test "the skip zstyle unregisters the hook but keeps run_confd callable" {
+  write_file "$CONFD/10-a.zsh" 'LOADED+=(a)'
+
+  z1_zsh <<'EOS'
+typeset -ga LOADED=()
+zstyle ':z1:confd' skip 'yes'
+source $Z1
+(( $post_zshrc_hook[(I)run_confd] )) && print "registered: yes" || print "registered: no"
+run_post_zshrc
+print "auto: $LOADED"
+run_confd
+print "byhand: $LOADED"
+EOS
+  assert_success
+  assert_line "registered: no"
+  assert_line "auto: "
+  assert_line "byhand: a"
+}
+
 @test "a missing conf.d directory is not an error" {
   z1_zsh <<'EOS'
 source $Z1

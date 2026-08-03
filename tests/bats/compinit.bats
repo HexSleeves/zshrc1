@@ -144,6 +144,38 @@ EOS
   refute_line "compinit: 	unfunction compinit compdef"
 }
 
+# Skipping hands completion back whole: no wrappers over compinit or compdef,
+# and nothing queued on post_zshrc.
+@test "the skip zstyle installs no wrappers and no hook" {
+  z1_zsh <<'EOS'
+zstyle ':z1:compinit' skip 'yes'
+source $Z1
+(( $+functions[compinit] )) && print "compinit: wrapped" || print "compinit: free"
+(( $+functions[compdef] )) && print "compdef: wrapped" || print "compdef: free"
+(( $post_zshrc_hook[(I)compinit] )) && print "hook: yes" || print "hook: no"
+run_post_zshrc
+(( $#_comps )) && print "comps: loaded" || print "comps: empty"
+EOS
+  assert_success
+  assert_line "compinit: free"
+  assert_line "compdef: free"
+  assert_line "hook: no"
+  assert_line "comps: empty"
+}
+
+@test "the real compinit still works when z1 skips it" {
+  z1_zsh <<'EOS'
+zstyle ':z1:compinit' skip 'yes'
+source $Z1
+autoload -Uz compinit && compinit -i -d $ZSH_COMPDUMP
+(( $#_comps )) && print "comps: loaded" || print "comps: empty"
+print "dumpfile: ${ZSH_COMPDUMP:t}"
+EOS
+  assert_success
+  assert_line "comps: loaded"
+  assert_output_contains "dumpfile: ZSH_COMPDUMP-"
+}
+
 @test "caching reuses the dumpfile instead of rebuilding it" {
   z1_zsh <<'EOS'
 zstyle ':z1:compinit' cache 'yes'

@@ -18,6 +18,16 @@ teardown() { z1_teardown; }
   assert_line "runs: 2"
 }
 
+@test "the homebrew skip style leaves brew alone" {
+  z1_zsh 'zstyle ":z1:homebrew" skip yes
+    source $Z1
+    [[ -f $HOME/brew-runs ]] && print "runs: yes" || print "runs: no"
+    print "env: $Z1_BREW_RAN"'
+  assert_success
+  assert_line "runs: no"
+  assert_line "env: "
+}
+
 @test "the homebrew cache style enables it" {
   z1_zsh 'zstyle ":z1:homebrew" cache yes
     source $Z1; source $Z1; source $Z1

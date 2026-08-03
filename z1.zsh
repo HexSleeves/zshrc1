@@ -16,10 +16,11 @@ ZSH_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
 ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
 mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
 
-# Set any zstyles you might use for configuration. To source .zstyles yourself
-# instead of here set the following zstyle:
+# Set any zstyles you might use for configuration. To skip .zstyles entirely, or
+# to source it yourself instead of here, set one of these:
+#   zstyle ':z1:zstyles' skip 'yes'
 #   zstyle ':z1:zstyles' loaded 'yes'
-if ! zstyle -t ':z1:zstyles' loaded; then
+if ! zstyle -t ':z1:zstyles' skip && ! zstyle -t ':z1:zstyles' loaded; then
   [ -r $ZSH_CONFIG_DIR/.zstyles ] \
   && . $ZSH_CONFIG_DIR/.zstyles
   zstyle ':z1:zstyles' loaded 'yes'
@@ -113,8 +114,10 @@ function repath() {
 # Homebrew
 #
 
-# Setup homebrew if it exists on the system.
-if (( $+commands[brew] )); then
+# Setup homebrew if it exists on the system. Skip it when you run brew shellenv
+# yourself, in .zprofile as Homebrew suggests, or anywhere else:
+#   zstyle ':z1:homebrew' skip 'yes'
+if (( $+commands[brew] )) && ! zstyle -t ':z1:homebrew' skip; then
   if zstyle -t ':z1:homebrew' cache; then
     cached-eval brew shellenv
   else
@@ -323,86 +326,91 @@ if [[ -z "$ZSH_COMPDUMP" ]]; then
     ZSH_COMPDUMP=$ZSH_CACHE_DIR/ZSH_COMPDUMP-${ZSH_VERSION}
 fi
 
-# Queue compdef calls until the real compinit runs at the end of .zshrc.
-typeset -gHa __compdef_queue=()
-function compdef() {
-  (( $# )) && __compdef_queue+=("${(j: :)${(@q+)@}}")
-}
+# Everything from here wires z1 into the completion system: the compdef queue,
+# the compinit wrapper, and the dumpfile cache. Hand the whole lot back with:
+#   zstyle ':z1:compinit' skip 'yes'
+if ! zstyle -t ':z1:compinit' skip; then
+  # Queue compdef calls until the real compinit runs at the end of .zshrc.
+  typeset -gHa __compdef_queue=()
+  function compdef() {
+    (( $# )) && __compdef_queue+=("${(j: :)${(@q+)@}}")
+  }
 
-# Print the completion directories compaudit objects to, and how to fix them.
-# Backgrounded by compinit, because the alternative is compinit stopping to ask,
-# which a shell with no terminal cannot answer.
-function z1-compaudit-warn() {
-  emulate -L zsh
-  autoload -Uz compaudit
+  # Print the completion directories compaudit objects to, and how to fix them.
+  # Backgrounded by compinit, because the alternative is compinit stopping to ask,
+  # which a shell with no terminal cannot answer.
+  function z1-compaudit-warn() {
+    emulate -L zsh
+    autoload -Uz compaudit
 
-  local -a insecure=(${(f)"$(compaudit 2>/dev/null)"})
-  (( $#insecure )) || return 0
+    local -a insecure=(${(f)"$(compaudit 2>/dev/null)"})
+    (( $#insecure )) || return 0
 
-  print -u2 "z1: ignoring insecure completion directories:"
-  print -lu2 -- $insecure
-  print -u2 "z1: fix them with: compaudit | xargs chmod g-w,o-w"
-}
+    print -u2 "z1: ignoring insecure completion directories:"
+    print -lu2 -- $insecure
+    print -u2 "z1: fix them with: compaudit | xargs chmod g-w,o-w"
+  }
 
-# Wrap compinit to replay our compdef queue when it's called. Caching the
-# dumpfile skips most of compinit's work and makes startup much faster:
-#   zstyle ':z1:compinit' cache 'yes'
-# See ZSH_COMPDUMP above to move the dumpfile. Args are passed through to the
-# real compinit and win over what we set, since a later -d beats an earlier one.
-function compinit() {
-  emulate -L zsh
-  setopt local_options extended_glob
+  # Wrap compinit to replay our compdef queue when it's called. Caching the
+  # dumpfile skips most of compinit's work and makes startup much faster:
+  #   zstyle ':z1:compinit' cache 'yes'
+  # See ZSH_COMPDUMP above to move the dumpfile. Args are passed through to the
+  # real compinit and win over what we set, since a later -d beats an earlier one.
+  function compinit() {
+    emulate -L zsh
+    setopt local_options extended_glob
 
-  # Load the real compinit so we can call it from this wrapper.
-  unfunction compinit compdef
-  autoload -Uz compinit
+    # Load the real compinit so we can call it from this wrapper.
+    unfunction compinit compdef
+    autoload -Uz compinit
 
-  # Running this elsewhere is fine, and means the post_zshrc hook has no work left.
-  post_zshrc_hook=(${post_zshrc_hook:#compinit})
+    # Running this elsewhere is fine, and means the post_zshrc hook has no work left.
+    post_zshrc_hook=(${post_zshrc_hook:#compinit})
 
-  # -i ignores insecure directories rather than prompting about them. Say so
-  # afterwards instead, since a prompt during startup blocks a shell that has no
-  # terminal to answer with, and tells a user with one nothing actionable.
-  mkdir -p $ZSH_COMPDUMP:h
-  if ! zstyle -t ':z1:compinit' cache; then
-    compinit -i -d "$ZSH_COMPDUMP" "$@"
-  else
-    # A dumpfile built from a different fpath is missing whatever the new
-    # entries provide, and an age check alone would hide that for 20 hours. So
-    # record the fpath it was built from alongside it, and start over when that
-    # moves. The stamp lives in its own file because `$(<file)` costs nothing,
-    # while searching the dumpfile itself means forking grep on every startup.
-    # Snapshot fpath first: compinit -i drops insecure directories from it, so
-    # stamping afterwards would record something the next startup never matches,
-    # and the cache would rebuild every time.
-    local stampfile=$ZSH_COMPDUMP.fpath stamped= wanted="$fpath"
-    [[ -r $stampfile ]] && stamped="$(<$stampfile)"
-    if [[ "$wanted" != "$stamped" ]]; then
-      command rm -f "$ZSH_COMPDUMP" "$ZSH_COMPDUMP.zwc"
-    fi
-
-    # -C skips the function check (and implies -i, the security check skip).
-    if [[ -n $ZSH_COMPDUMP(#qNmh-20) ]]; then
-      compinit -C -d "$ZSH_COMPDUMP" "$@"  # Take the fast path.
-    else
+    # -i ignores insecure directories rather than prompting about them. Say so
+    # afterwards instead, since a prompt during startup blocks a shell that has no
+    # terminal to answer with, and tells a user with one nothing actionable.
+    mkdir -p $ZSH_COMPDUMP:h
+    if ! zstyle -t ':z1:compinit' cache; then
       compinit -i -d "$ZSH_COMPDUMP" "$@"
-      print -r -- "$wanted" >| $stampfile
-      touch "$ZSH_COMPDUMP"  # Always reset the time when we take the slow path.
+    else
+      # A dumpfile built from a different fpath is missing whatever the new
+      # entries provide, and an age check alone would hide that for 20 hours. So
+      # record the fpath it was built from alongside it, and start over when that
+      # moves. The stamp lives in its own file because `$(<file)` costs nothing,
+      # while searching the dumpfile itself means forking grep on every startup.
+      # Snapshot fpath first: compinit -i drops insecure directories from it, so
+      # stamping afterwards would record something the next startup never matches,
+      # and the cache would rebuild every time.
+      local stampfile=$ZSH_COMPDUMP.fpath stamped= wanted="$fpath"
+      [[ -r $stampfile ]] && stamped="$(<$stampfile)"
+      if [[ "$wanted" != "$stamped" ]]; then
+        command rm -f "$ZSH_COMPDUMP" "$ZSH_COMPDUMP.zwc"
+      fi
+
+      # -C skips the function check (and implies -i, the security check skip).
+      if [[ -n $ZSH_COMPDUMP(#qNmh-20) ]]; then
+        compinit -C -d "$ZSH_COMPDUMP" "$@"  # Take the fast path.
+      else
+        compinit -i -d "$ZSH_COMPDUMP" "$@"
+        print -r -- "$wanted" >| $stampfile
+        touch "$ZSH_COMPDUMP"  # Always reset the time when we take the slow path.
+      fi
+
+      # Recompile only if stale; atomic rename, safe under concurrent shells.
+      autoload -Uz zrecompile
+      zrecompile -q -p "$ZSH_COMPDUMP" &!
     fi
 
-    # Recompile only if stale; atomic rename, safe under concurrent shells.
-    autoload -Uz zrecompile
-    zrecompile -q -p "$ZSH_COMPDUMP" &!
-  fi
+    z1-compaudit-warn &|
 
-  z1-compaudit-warn &|
-
-  local entry
-  for entry in "${__compdef_queue[@]}"; do
-    eval "compdef $entry"
-  done
-  unset __compdef_queue
-}
+    local entry
+    for entry in "${__compdef_queue[@]}"; do
+      eval "compdef $entry"
+    done
+    unset __compdef_queue
+  }
+fi
 
 #
 # Jobs
@@ -690,13 +698,16 @@ if (( ! $+commands[hd] )) && (( $+commands[hexdump] )); then
   alias hd='hexdump -C'
 fi
 
-# Lazy-load my functions.
-ZFUNCDIR=${ZFUNCDIR:-$ZSH_CONFIG_DIR/functions}
-for _zfndir in $ZFUNCDIR(-/FN) $ZFUNCDIR/*(-/FN); do
-  fpath=($_zfndir $fpath)
-  autoload -Uz $_zfndir/*~*/_*(N.:t)
-done
-unset _zfndir
+# Lazy-load my functions. Handle your own fpath and autoloads with:
+#   zstyle ':z1:zfunctions' skip 'yes'
+if ! zstyle -t ':z1:zfunctions' skip; then
+  export ZFUNCDIR=${ZFUNCDIR:-$ZSH_CONFIG_DIR/functions}
+  for _zfndir in $ZFUNCDIR(-/FN) $ZFUNCDIR/*(-/FN); do
+    fpath=($_zfndir $fpath)
+    autoload -Uz $_zfndir/*~*/_*(N.:t)
+  done
+  unset _zfndir
+fi
 
 #
 # Conf.d
@@ -706,6 +717,8 @@ unset _zfndir
 # starting with '~' are skipped, so you can park one without deleting it. Point
 # it somewhere else with:
 #   zstyle ':z1:confd' directory "$ZSH_CONFIG_DIR/rc.d"
+# Or keep run_confd around to call when you like, but never automatically:
+#   zstyle ':z1:confd' skip 'yes'
 # No `emulate -L`/`local_options` here on purpose. These are config files, so
 # whatever they setopt has to outlive this function.
 function run_confd() {
@@ -724,5 +737,8 @@ function run_confd() {
 
 # Register functions to run at the end of .zshrc. Each function here runs in order,
 # and should unregister itself from the post_zshrc_hook if it runs early.
-add-post-zshrc-hook run_confd
-add-post-zshrc-hook compinit
+zstyle -t ':z1:confd' skip || add-post-zshrc-hook run_confd
+zstyle -t ':z1:compinit' skip || add-post-zshrc-hook compinit
+
+# Always succeed
+true

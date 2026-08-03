@@ -64,6 +64,28 @@ EOS
   assert_line "marked: yes"
 }
 
+@test "the skip zstyle skips the load" {
+  z1_zsh <<'EOS'
+zstyle ':z1:zstyles' skip 'yes'
+source $Z1
+[[ -f $HOME/runs ]] && print "sourced: yes" || print "sourced: no"
+zstyle -t ':demo:from' zstyles && print "style: set" || print "style: unset"
+EOS
+  assert_success
+  assert_line "sourced: no"
+  assert_line "style: unset"
+}
+
+@test "skipping does not claim .zstyles were loaded" {
+  z1_zsh <<'EOS'
+zstyle ':z1:zstyles' skip 'yes'
+source $Z1
+zstyle -t ':z1:zstyles' loaded && print "marked: yes" || print "marked: no"
+EOS
+  assert_success
+  assert_line "marked: no"
+}
+
 @test "a missing .zstyles file is not an error" {
   rm -f "$TEST_HOME/.config/zsh/.zstyles"
 

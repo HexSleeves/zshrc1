@@ -96,7 +96,9 @@ sources for you, or anywhere in your `.zshrc` before `z1` loads.
 | `:z1:color`        | `cache`     | off                                        | Cache `dircolors --sh` output rather than running it each startup |
 | `:z1:compinit`     | `cache`     | off                                        | Cache the completion dumpfile and take `compinit`'s fast path     |
 | `:z1:compinit`     | `dumpfile`  | `$ZSH_CACHE_DIR/ZSH_COMPDUMP-$ZSH_VERSION` | Where the completion dumpfile lives                               |
+| `:z1:compinit`     | `skip`      | off                                        | Leave `compinit` and `compdef` alone. No wrappers, no auto-run    |
 | `:z1:confd`        | `directory` | `$ZSH_CONFIG_DIR/conf.d`                   | Directory of config files to source at the end of your `.zshrc`   |
+| `:z1:confd`        | `skip`      | off                                        | Never source `conf.d`. `run_confd` still works when called        |
 | `:z1:editor`       | `keymap`    | `emacs`                                    | Line editor keymap. Set it to `vi` for vi mode                    |
 | `:z1:editor:emacs` | `cursor`    | `line`                                     | Cursor shape in emacs mode                                        |
 | `:z1:editor:vicmd` | `cursor`    | `block`                                    | Cursor shape in vi command mode                                   |
@@ -105,9 +107,12 @@ sources for you, or anywhere in your `.zshrc` before `z1` loads.
 | `:z1:history`      | `histsize`  | `50000`                                    | Events kept in the current session                                |
 | `:z1:history`      | `savehist`  | `100000`                                   | Events kept in the history file                                   |
 | `:z1:homebrew`     | `cache`     | off                                        | Cache `brew shellenv` output rather than running it each startup  |
+| `:z1:homebrew`     | `skip`      | off                                        | Never run `brew shellenv`, for when you have run it yourself      |
 | `:z1:path`         | `prepath`   | `~/bin ~/sbin ~/.local/bin ~/.local/sbin`  | Entries kept at the front of `$path`                              |
 | `:z1:post_zshrc`   | `debug`     | off                                        | Print each `post_zshrc` hook as it runs                           |
+| `:z1:zfunctions`   | `skip`      | off                                        | Leave `$ZFUNCDIR` off `fpath` and autoload nothing from it        |
 | `:z1:zstyles`      | `loaded`    | off                                        | Set it yourself to stop `z1` sourcing your `.zstyles`             |
+| `:z1:zstyles`      | `skip`      | off                                        | Never source your `.zstyles`, and don't mark them loaded          |
 
 Of the `prepath` defaults, only the directories that exist are used. Cursor
 shapes are `block`, `underscore`, and `line`, each also with a `-blink`
@@ -129,6 +134,25 @@ zstyle ':z1:*' cache 'yes'
 
 Use `cached-eval --clear` to empty the caches by hand, and `compinit`'s cache
 rebuilds itself whenever `$fpath` changes.
+
+Where `z1` wires itself into something that is properly yours, the style name is
+`skip`. It covers the three places `z1` loads files for you (`.zstyles`,
+`$ZFUNCDIR`, and `conf.d`), plus `compinit` and Homebrew, for when you would
+rather handle those yourself:
+
+```zsh
+# .zshrc, before z1 loads
+zstyle ':z1:zfunctions' skip 'yes'
+```
+
+As with `cache`, one pattern covers all of them:
+
+```zsh
+zstyle ':z1:*' skip 'yes'
+```
+
+These have to be set in your `.zshrc` before `z1` loads. Your `.zstyles` is too
+late, since sourcing it is one of the things `skip` governs.
 
 ### Prompt
 
