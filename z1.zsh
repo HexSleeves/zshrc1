@@ -19,10 +19,19 @@ if ! zstyle -t ':z1:zstyles' skip && ! zstyle -t ':z1:zstyles' loaded; then
 fi
 
 # Set Zsh location vars.
-ZSH_CONFIG_DIR="${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
-ZSH_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
-ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
-mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
+if zstyle -T ':z1:xdg-basedirs' enable; then
+  ZSH_CONFIG_DIR="${ZSH_CONFIG_DIR:-${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}}"
+  ZSH_DATA_DIR="${ZSH_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/zsh}"
+  ZSH_CACHE_DIR="${ZSH_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/zsh}"
+else
+  ZSH_CONFIG_DIR="${ZSH_CONFIG_DIR:-${ZDOTDIR:-$HOME}}"
+  ZSH_DATA_DIR="${ZSH_DATA_DIR:-${ZDOTDIR:-$HOME}}"
+  ZSH_CACHE_DIR="${ZSH_CACHE_DIR:-${ZDOTDIR:-$HOME}}"
+fi
+
+# Test first so a normal startup never needs mkdir.
+[[ -d $ZSH_CONFIG_DIR && -d $ZSH_DATA_DIR && -d $ZSH_CACHE_DIR ]] \
+|| mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
 
 # Run a command that prints Zsh code and source its output, keeping a cached copy so
 # later shells benefit.

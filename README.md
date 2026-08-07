@@ -116,6 +116,7 @@ before it reads any style of its own, so that one file is enough. `.zshrc` befor
 | `:z1:homebrew`            | `skip`         | off                                        | Never run `brew shellenv`, for when you have run it yourself      |
 | `:z1:path`                | `prepath`      | `~/bin ~/sbin ~/.local/bin ~/.local/sbin`  | Entries kept at the front of `$path`                              |
 | `:z1:post_zshrc`          | `debug`        | off                                        | Print each `post_zshrc` hook as it runs                           |
+| `:z1:xdg-basedirs`        | `enable`       | on                                         | Put config, data, and cache in the XDG directories                |
 | `:z1:zfunctions`          | `skip`         | off                                        | Leave `$ZFUNCDIR` off `fpath` and autoload nothing from it        |
 | `:z1:zstyles`             | `loaded`       | off                                        | Set it yourself to stop `z1` sourcing your `.zstyles`             |
 | `:z1:zstyles`             | `skip`         | off                                        | Never source your `.zstyles`, and don't mark them loaded          |
@@ -175,7 +176,22 @@ zstyle ':z1:zstyles' skip 'yes'
 ```
 
 Everything else can live in `.zstyles`, since `z1` loads it before it reads a style of
-its own.
+its own. That includes `xdg-basedirs`, the one style that is on by default. Turn it off
+and config, data, and cache all become `$ZDOTDIR`, or `$HOME` when you have no
+`$ZDOTDIR`:
+
+```zsh
+# .zstyles
+zstyle ':z1:xdg-basedirs' enable 'no'
+```
+
+Either way, a directory you set yourself is left alone, so you can move one without
+moving the rest. That one has to be in your `.zshrc`, since it decides where things go:
+
+```zsh
+# .zshrc, before z1 loads
+ZSH_CACHE_DIR=$HOME/.cache/zsh
+```
 
 ### Prompt
 
@@ -209,7 +225,7 @@ or are conventional names from elsewhere.
 | `ZSH_BINDKEY`    | see `:z1:editor` `keymap`               | Wins over the zstyle when set before `z1` loads |
 | `ZSTYLESFILE`    | `${ZDOTDIR:-$HOME}/.zstyles`            | The zstyles file `z1` sources on the way in     |
 | `ZSH_COMPDUMP`   | see `:z1:compinit` `dumpfile`           | Wins over the zstyle when set before `z1` loads |
-| `ZSH_CONFIG_DIR` | `$ZDOTDIR`, else `$XDG_CONFIG_HOME/zsh` | Where your config lives                         |
+| `ZSH_CONFIG_DIR` | `$ZDOTDIR`, else `$XDG_CONFIG_HOME/zsh` | Where your config lives. Preset value wins      |
 | `ZSH_DATA_DIR`   | `$XDG_DATA_HOME/zsh`                    | Where data that should persist lives            |
 | `ZSH_CACHE_DIR`  | `$XDG_CACHE_HOME/zsh`                   | Where throwaway data lives                      |
 

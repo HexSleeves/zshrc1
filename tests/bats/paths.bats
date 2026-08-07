@@ -79,3 +79,84 @@ EOS
   assert_success
   assert_line "grew: 0"
 }
+
+# The three location vars. XDG by default, $ZDOTDIR when opted out, and a value
+# you set yourself always wins.
+@test "the location vars follow the XDG dirs by default" {
+  z1_zsh 'source $Z1
+    print "config: $ZSH_CONFIG_DIR"
+    print "data: $ZSH_DATA_DIR"
+    print "cache: $ZSH_CACHE_DIR"'
+  assert_success
+  assert_line "config: $TEST_HOME/.config/zsh"
+  assert_line "data: $TEST_HOME/.local/share/zsh"
+  assert_line "cache: $TEST_HOME/.cache/zsh"
+}
+
+@test "opting out of the XDG dirs puts everything under ZDOTDIR" {
+  z1_zsh 'zstyle ":z1:xdg-basedirs" enable no
+    source $Z1
+    print "config: $ZSH_CONFIG_DIR"
+    print "data: $ZSH_DATA_DIR"
+    print "cache: $ZSH_CACHE_DIR"'
+  assert_success
+  assert_line "config: $TEST_HOME/.config/zsh"
+  assert_line "data: $TEST_HOME/.config/zsh"
+  assert_line "cache: $TEST_HOME/.config/zsh"
+}
+
+@test "opting out without a ZDOTDIR lands in HOME" {
+  z1_zsh 'ZDOTDIR=
+    zstyle ":z1:xdg-basedirs" enable no
+    source $Z1
+    print "config: $ZSH_CONFIG_DIR"
+    print "data: $ZSH_DATA_DIR"
+    print "cache: $ZSH_CACHE_DIR"'
+  assert_success
+  assert_line "config: $TEST_HOME"
+  assert_line "data: $TEST_HOME"
+  assert_line "cache: $TEST_HOME"
+}
+
+@test "a preset location var wins over the XDG default" {
+  z1_zsh 'ZSH_CACHE_DIR=$HOME/mycache
+    source $Z1
+    print "config: $ZSH_CONFIG_DIR"
+    print "cache: $ZSH_CACHE_DIR"'
+  assert_success
+  assert_line "config: $TEST_HOME/.config/zsh"
+  assert_line "cache: $TEST_HOME/mycache"
+}
+
+@test "a preset location var wins when opted out too" {
+  z1_zsh 'ZSH_DATA_DIR=$HOME/mydata
+    zstyle ":z1:xdg-basedirs" enable no
+    source $Z1
+    print "data: $ZSH_DATA_DIR"
+    print "cache: $ZSH_CACHE_DIR"'
+  assert_success
+  assert_line "data: $TEST_HOME/mydata"
+  assert_line "cache: $TEST_HOME/.config/zsh"
+}
+
+@test "an explicit yes keeps the XDG dirs" {
+  z1_zsh 'zstyle ":z1:xdg-basedirs" enable yes
+    source $Z1
+    print "data: $ZSH_DATA_DIR"'
+  assert_success
+  assert_line "data: $TEST_HOME/.local/share/zsh"
+}
+
+# .zstyles loads before the location vars are set, so this style works from
+# there rather than having to go in .zshrc.
+@test "the xdg-basedirs style works from .zstyles" {
+  write_file "$TEST_HOME/.config/zsh/.zstyles" \
+    "zstyle ':z1:xdg-basedirs' enable 'no'"
+
+  z1_zsh 'source $Z1
+    print "config: $ZSH_CONFIG_DIR"
+    print "data: $ZSH_DATA_DIR"'
+  assert_success
+  assert_line "config: $TEST_HOME/.config/zsh"
+  assert_line "data: $TEST_HOME/.config/zsh"
+}
