@@ -237,9 +237,19 @@ export LESS_TERMCAP_me=${LESS_TERMCAP_me:-$reset_color}     # end bold/blink
 # leave it alone if it already asks for color.
 [[ "$aliases[grep]" == *--color* ]] || alias grep="${aliases[grep]:-grep} --color=auto"
 
-# Older BSD diff has no --color, so ask before aliasing.
-if [[ "$aliases[diff]" != *--color* ]] && command diff --color /dev/null{,} &>/dev/null; then
-  alias diff="${aliases[diff]:-diff} --color"
+# Older BSD diff has no --color, and asking costs a fork, so ask on first use.
+if [[ -z "$aliases[diff]" ]]; then
+  function diff() {
+    unfunction diff
+    if command diff --color /dev/null{,} &>/dev/null; then
+      alias diff='diff --color'
+      command diff --color "$@"
+    else
+      command diff "$@"
+    fi
+  }
+elif [[ "$aliases[diff]" != *--color* ]] && command diff --color /dev/null{,} &>/dev/null; then
+  alias diff="$aliases[diff] --color"
 fi
 
 # GNU ls colorizes with --color, BSD ls with -G, and passing the wrong one to an

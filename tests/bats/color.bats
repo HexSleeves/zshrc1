@@ -122,3 +122,54 @@ EOS
   assert_success
   assert_line "ls_colors: set"
 }
+
+# diff is left as a function until you run it, so startup never forks to ask
+# whether this diff understands --color.
+@test "diff starts as a function, not an alias" {
+  z1_zsh 'source $Z1
+    print "alias: ${aliases[diff]:-none}"
+    print "fn: ${${(k)functions[(I)diff]}:-none}"'
+  assert_success
+  assert_line "alias: none"
+  assert_line "fn: diff"
+}
+
+@test "running diff aliases it when --color works" {
+  stub_command diff 'exit 0'
+  z1_zsh 'source $Z1
+    diff a b
+    print "alias: ${aliases[diff]:-none}"
+    print "fn: ${${(k)functions[(I)diff]}:-none}"'
+  assert_success
+  assert_line "alias: diff --color"
+  assert_line "fn: none"
+}
+
+@test "running diff leaves no alias when --color fails" {
+  stub_command diff '[[ "$1" == --color ]] && exit 2; exit 0'
+  z1_zsh 'source $Z1
+    diff a b
+    print "alias: ${aliases[diff]:-none}"
+    print "fn: ${${(k)functions[(I)diff]}:-none}"'
+  assert_success
+  assert_line "alias: none"
+  assert_line "fn: none"
+}
+
+@test "diff passes its arguments through" {
+  stub_command diff 'print "args: $@"'
+  z1_zsh 'source $Z1; diff one two'
+  assert_success
+  assert_line "args: --color one two"
+}
+
+@test "an existing diff alias still gets --color appended" {
+  stub_command diff 'exit 0'
+  z1_zsh <<'EOS'
+alias diff='diff -u'
+source $Z1
+print "alias: $aliases[diff]"
+EOS
+  assert_success
+  assert_line "alias: diff -u --color"
+}
