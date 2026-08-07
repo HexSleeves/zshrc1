@@ -8,22 +8,22 @@
 ## Description
 
 `z1` is designed to be a portable, lightweight, ultra-fast, Zsh configuration in a
-single file. Equally useful on your desktop machine or on a remote server, z1
-enables much of the useful functionality already built into Zsh without the need for
-frameworks. And, it's ridiculously fast!
+single file. Equally useful on your desktop machine or on a remote server, z1 enables
+much of the useful functionality already built into Zsh without the need for frameworks.
+And, it's ridiculously fast!
 
-`z1`'s goal of giving you a great starter DIY Zsh experience in a single file
-stands in contrast to other full Zsh Frameworks like [Oh-My-Zsh][ohmyzsh] and
-[Prezto][prezto]. Those frameworks are nice if you want everything-and-the-kitchen-sink,
-but you pay a performance and complexity penalty for using these frameworks.
+`z1`'s goal of giving you a great starter DIY Zsh experience in a single file stands in
+contrast to other full Zsh Frameworks like [Oh-My-Zsh][ohmyzsh] and [Prezto][prezto].
+Those frameworks are nice if you want everything-and-the-kitchen-sink, but you pay a
+performance and complexity penalty for using these frameworks.
 
 Many prefer to build their own Zsh config from scratch, but that can be a lot of work
 and often requires you to pull together functionality already baked into the Zsh
 frameworks you leave behind.
 
-`z1` is simpler. Similar to [Grml's .zshrc][grml-zshrc], `z1` gives you
-everything you need for a full-featured Zsh config, but contained in one simple to grok
-Zsh include that will grow with you as you use Zsh. It is heavily inspired by the [Fish
+`z1` is simpler. Similar to [Grml's .zshrc][grml-zshrc], `z1` gives you everything you
+need for a full-featured Zsh config, but contained in one simple to grok Zsh include
+that will grow with you as you use Zsh. It is heavily inspired by the [Fish
 shell][fish].
 
 Feel free to use it as-is, build off it, or fork it and make it entirely your own.
@@ -34,13 +34,15 @@ Feel free to use it as-is, build off it, or fork it and make it entirely your ow
 - Enable better Zsh options than the defaults
 - Set better Zsh history options and variables
 - Colorize output of commands like `ls`, `grep`, `diff`, and `man`
-- Sensible line editor setup with vi/emacs keymap selection, cursor-style hints, and common terminal key fixes
-- Useful zle widgets like `prepend-sudo`, `pound-toggle`, `edit-command-line`, paste magic, and quote magic
+- Sensible line editor setup with vi/emacs keymap selection, cursor-style hints, and
+  common terminal key fixes
+- Useful zle widgets like `prepend-sudo`, `pound-toggle`, `edit-command-line`, paste
+  magic, and quote magic
 - Configure Zsh built-in completion system with cached `compinit` for fast startup
 - Use built-in Zsh prompt system, with prompts found in your own `prompts/` directory
 - Initialize Homebrew automatically when present
-- Every decision is reversible: z1 only uses plain Zsh builtins, so anything it sets can be
-  changed or undone after you source it. `unsetopt` an option, `unalias` an alias,
+- Every decision is reversible: z1 only uses plain Zsh builtins, so anything it sets can
+  be changed or undone after you source it. `unsetopt` an option, `unalias` an alias,
   rebind a key. Values you already exported win, and zstyles let you opt out ahead of
   time
 
@@ -88,8 +90,8 @@ Since `z1` sets up the basics everything else builds on, list it first.
 
 ## Configuration
 
-`z1` is configured with zstyles. Set them in `$ZDOTDIR/.zstyles`, which `z1`
-sources for you, or anywhere in your `.zshrc` before `z1` loads.
+`z1` is configured with zstyles. Set them in `$ZDOTDIR/.zstyles`, which `z1` sources for
+you, or anywhere in your `.zshrc` before `z1` loads.
 
 | Context            | Style       | Default                                    | What it does                                                      |
 | ------------------ | ----------- | ------------------------------------------ | ----------------------------------------------------------------- |
@@ -114,9 +116,9 @@ sources for you, or anywhere in your `.zshrc` before `z1` loads.
 | `:z1:zstyles`      | `loaded`    | off                                        | Set it yourself to stop `z1` sourcing your `.zstyles`             |
 | `:z1:zstyles`      | `skip`      | off                                        | Never source your `.zstyles`, and don't mark them loaded          |
 
-Of the `prepath` defaults, only the directories that exist are used. Cursor
-shapes are `block`, `underscore`, and `line`, each also with a `-blink`
-suffix, and are only emitted on terminals that understand DECSCUSR.
+Of the `prepath` defaults, only the directories that exist are used. Cursor shapes are
+`block`, `underscore`, and `line`, each also with a `-blink` suffix, and are only
+emitted on terminals that understand DECSCUSR.
 
 ```zsh
 # .zstyles
@@ -124,21 +126,20 @@ zstyle ':z1:history' savehist 500000
 zstyle ':z1:confd' directory "$ZSH_CONFIG_DIR/rc.d"
 ```
 
-Caching is off by default because a cache hides a change until it expires, after
-20 hours. Every cache shares the style name `cache`, so one pattern turns them
-all on:
+Caching is off by default because a cache hides a change until it expires, after 20
+hours. Every cache shares the style name `cache`, so one pattern turns them all on:
 
 ```zsh
 zstyle ':z1:*' cache 'yes'
 ```
 
-Use `cached-eval --clear` to empty the caches by hand, and `compinit`'s cache
-rebuilds itself whenever `$fpath` changes.
+Use `cached-eval --clear` to empty the caches by hand, and `compinit`'s cache rebuilds
+itself whenever `$fpath` changes.
 
-Where `z1` wires itself into something that is properly yours, the style name is
-`skip`. It covers the three places `z1` loads files for you (`.zstyles`,
-`$ZFUNCDIR`, and `conf.d`), plus `compinit` and Homebrew, for when you would
-rather handle those yourself:
+Where `z1` wires itself into something that is properly yours, the style name is `skip`.
+It covers the three places `z1` loads files for you (`.zstyles`, `$ZFUNCDIR`, and
+`conf.d`), plus `compinit` and Homebrew, for when you would rather handle those
+yourself:
 
 ```zsh
 # .zshrc, before z1 loads
@@ -151,13 +152,13 @@ As with `cache`, one pattern covers all of them:
 zstyle ':z1:*' skip 'yes'
 ```
 
-These have to be set in your `.zshrc` before `z1` loads. Your `.zstyles` is too
-late, since sourcing it is one of the things `skip` governs.
+These have to be set in your `.zshrc` before `z1` loads. Your `.zstyles` is too late,
+since sourcing it is one of the things `skip` governs.
 
 ### Prompt
 
-`z1` adds `$ZSH_CONFIG_DIR/prompts` and its own `prompts/` directory to `fpath`,
-yours first. Starting zsh's prompt system is left to you:
+`z1` adds `$ZSH_CONFIG_DIR/prompts` and its own `prompts/` directory to `fpath`, yours
+first. Starting zsh's prompt system is left to you:
 
 ```zsh
 # .zshrc
@@ -171,14 +172,14 @@ The bundled `z1` prompt reads these:
 | ---------------------- | -------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------- |
 | `:z1:prompt`           | `pwd-length`                                                   | short             | `full` for `$PWD`, `long` for a `~`-shortened path, otherwise abbreviated |
 | `:z1:prompt`           | `transient`                                                    | off               | Collapse an accepted line to just the prompt character                    |
-| `:z1:prompt:character` | `success` `error` `vicmd` `stash` `dirty` `ahead` `behind`     | `❱ ❱ ❰ ☰ • ⇡ ⇣`   | Symbols the prompt is built from                                          |
+| `:z1:prompt:character` | `success` `error` `vicmd` `stash` `dirty` `ahead` `behind`     | `❱ ❱ ❰ ☰ • ⇡ ⇣`  | Symbols the prompt is built from                                          |
 | `:z1:prompt:colors`    | `black` `red` `green` `yellow` `blue` `magenta` `cyan` `white` | 256-color palette | Color numbers the prompt is built from                                    |
 | `:z1:prompt:unicode`   | `disable`                                                      | off               | Fall back to ASCII symbols                                                |
 
 ### Variables
 
-A few things are plain variables, because they are read before any zstyle could
-be set, or are conventional names from elsewhere.
+A few things are plain variables, because they are read before any zstyle could be set,
+or are conventional names from elsewhere.
 
 | Variable         | Default                                 | What it does                                    |
 | ---------------- | --------------------------------------- | ----------------------------------------------- |
@@ -191,12 +192,12 @@ be set, or are conventional names from elsewhere.
 
 ### I don't like a setting
 
-Nothing `z1` does is locked in. It uses plain Zsh builtins in one pass, so the
-last word is always yours. Undo anything you disagree with after the `source`
-line in your `.zshrc`, or from a file in `conf.d`, which runs later still.
+Nothing `z1` does is locked in. It uses plain Zsh builtins in one pass, so the last word
+is always yours. Undo anything you disagree with after the `source` line in your
+`.zshrc`, or from a file in `conf.d`, which runs later still.
 
-`z1` turns off shared history, for instance, because most people want each
-terminal to keep its own. If you want the other behavior, turn it back on:
+`z1` turns off shared history, for instance, because most people want each terminal to
+keep its own. If you want the other behavior, turn it back on:
 
 ```zsh
 # .zshrc, after z1 loads
@@ -205,26 +206,25 @@ setopt share_history
 
 That idea works for anything `z1` sets:
 
-| You dislike        | Undo it with                                        |
-| ------------------ | --------------------------------------------------- |
-| An option          | `setopt` or `unsetopt` the option again             |
-| An alias           | `unalias grep`, or redefine it                      |
-| A key binding      | `bindkey` the sequence to a different widget        |
-| A completion style | `zstyle` the same context again with your value     |
-| An environment var | `export PAGER=bat`                                  |
+| You dislike        | Undo it with                                    |
+| ------------------ | ----------------------------------------------- |
+| An option          | `setopt` or `unsetopt` the option again         |
+| An alias           | `unalias grep`, or redefine it                  |
+| A key binding      | `bindkey` the sequence to a different widget    |
+| A completion style | `zstyle` the same context again with your value |
+| An environment var | `export PAGER=bat`                              |
 
-Environment variables are a special case worth knowing: `z1` only fills in the
-ones you have not already set, so exporting `EDITOR` or `LESS` before `z1`
-loads is enough. The same is true of `ZSH_BINDKEY`, `ZSH_COMPDUMP`, and the
-directory variables in the table above.
+Environment variables are a special case worth knowing: `z1` only fills in the ones you
+have not already set, so exporting `EDITOR` or `LESS` before `z1` loads is enough. The
+same is true of `ZSH_BINDKEY`, `ZSH_COMPDUMP`, and the directory variables in the table
+above.
 
-For settings with a zstyle, prefer the zstyle. It is read as `z1` loads, so the
-setting is never applied in the first place rather than applied and then
-reversed.
+For settings with a zstyle, prefer the zstyle. It is read as `z1` loads, so the setting
+is never applied in the first place rather than applied and then reversed.
 
-If you find yourself undoing a lot, remember `z1` is one file. Copy it into your
-own config and cut the parts you don't want. I tried to be very light on enforcing
-my opinions and focused more on creating a better out-of-the-box Zsh starter config.
+If you find yourself undoing a lot, remember `z1` is one file. Copy it into your own
+config and cut the parts you don't want. I tried to be very light on enforcing my
+opinions and focused more on creating a better out-of-the-box Zsh starter config.
 
 [antidote]: https://antidote.sh
 [fish]: https://fishshell.com

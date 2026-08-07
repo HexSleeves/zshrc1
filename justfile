@@ -9,6 +9,16 @@ default:
 test *files:
     ./tests/run {{ files }}
 
+prettier := "npx --yes prettier@3 --prose-wrap always --print-width 88"
+
+# Wrap markdown prose at 88 columns. Tables and code blocks are left alone.
+format path='.':
+    find {{ path }} -name '*.md' -print0 | xargs -0 {{ prettier }} --write
+
+# Check markdown formatting without writing anything.
+format-check path='.':
+    find {{ path }} -name '*.md' -print0 | xargs -0 {{ prettier }} --check
+
 # Show the current z1 version.
 version:
     @grep '^current_version' .bumpversion.cfg | cut -d' ' -f3-
