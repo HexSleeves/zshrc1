@@ -654,6 +654,47 @@ bindkey -M vicmd '#' vi-pound-insert
 bindkey -M emacs '^[s' prepend-sudo
 bindkey -M viins '^[s' prepend-sudo
 
+# Expand the alias under the cursor. Global aliases always expand, plain ones
+# only when not also a command name, so ls='ls --color' is left alone. The
+# exclude and include lists override that both ways, exclude first.
+function expand-alias-word() {
+  # (Az) splits LBUFFER with shell parsing, always as an array.
+  local word=${${(Az)LBUFFER}[-1]}
+  local -a never always
+  zstyle -a ':z1:editor:expand-alias' exclude never
+  (( $never[(Ie)$word] )) && return
+  zstyle -a ':z1:editor:expand-alias' include always
+  (( $always[(Ie)$word] || $+galiases[$word] || ! $+commands[$word] )) \
+    && zle _expand_alias
+}
+
+function expand-alias-space() {
+  expand-alias-word
+  zle self-insert
+}
+zle -N expand-alias-space
+
+function expand-alias-accept() {
+  expand-alias-word
+  zle accept-line
+}
+zle -N expand-alias-accept
+
+# Expanding as you type is not for everyone, so the keys are opt-in. Alt-Space
+# still lets you insert a space without expanding.
+#   zstyle ':z1:editor' expand-alias 'yes'
+#   zstyle ':z1:editor:expand-alias' exclude 'ls' 'rm'
+#   zstyle ':z1:editor:expand-alias' include 'vim' 'cat'
+if zstyle -t ':z1:editor' expand-alias; then
+  for _z1_keymap in emacs viins; do
+    bindkey -M $_z1_keymap ' '   expand-alias-space
+    bindkey -M $_z1_keymap '^[ ' magic-space
+    bindkey -M $_z1_keymap '^M'  expand-alias-accept
+  done
+  bindkey -M isearch ' ' magic-space
+  unset _z1_keymap
+fi
+
 #
 # Utility
 #

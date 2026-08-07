@@ -159,3 +159,120 @@ teardown() { z1_teardown; }
   assert_success
   assert_line "len: 0"
 }
+
+# Alias expansion. Keys are opt-in, widgets always exist so they can be bound
+# elsewhere.
+@test "the expand-alias widgets exist without the zstyle" {
+  z1_zsh 'source $Z1
+    print "space: ${widgets[expand-alias-space]}"
+    print "accept: ${widgets[expand-alias-accept]}"'
+  assert_success
+  assert_line "space: user:expand-alias-space"
+  assert_line "accept: user:expand-alias-accept"
+}
+
+@test "space and enter keep their usual widgets by default" {
+  z1_zsh 'source $Z1
+    print "space: $(bindkey -M emacs " ")"
+    print "enter: $(bindkey -M emacs "^M")"'
+  assert_success
+  assert_line 'space: " " self-insert'
+  assert_line 'enter: "^M" accept-line'
+}
+
+@test "the expand-alias zstyle binds space and enter" {
+  z1_zsh 'zstyle ":z1:editor" expand-alias yes
+    source $Z1
+    print "space: $(bindkey -M emacs " ")"
+    print "enter: $(bindkey -M emacs "^M")"
+    print "viins: $(bindkey -M viins " ")"
+    print "alt: $(bindkey -M emacs "^[ ")"
+    print "isearch: $(bindkey -M isearch " ")"'
+  assert_success
+  assert_line 'space: " " expand-alias-space'
+  assert_line 'enter: "^M" expand-alias-accept'
+  assert_line 'viins: " " expand-alias-space'
+  assert_line 'alt: "^[ " magic-space'
+  assert_line 'isearch: " " magic-space'
+}
+
+# These call expand-alias-word with zle stubbed, since a widget needs a real
+# line editor.
+@test "a global alias expands" {
+  z1_zsh 'source $Z1
+    zle() { print "zle: $*"; }
+    alias -g GG="| grep"
+    LBUFFER="ls GG"
+    expand-alias-word'
+  assert_success
+  assert_line "zle: _expand_alias"
+}
+
+@test "an alias that shadows a command is left alone" {
+  z1_zsh 'source $Z1
+    zle() { print "zle: $*"; }
+    LBUFFER="ls"
+    expand-alias-word
+    print "done"'
+  assert_success
+  assert_line "done"
+  refute_line "zle: _expand_alias"
+}
+
+@test "an alias that is not a command expands" {
+  z1_zsh 'source $Z1
+    zle() { print "zle: $*"; }
+    alias gs="git status"
+    LBUFFER="gs"
+    expand-alias-word'
+  assert_success
+  assert_line "zle: _expand_alias"
+}
+
+@test "the exclude zstyle keeps a word from expanding" {
+  z1_zsh 'source $Z1
+    zle() { print "zle: $*"; }
+    zstyle ":z1:editor:expand-alias" exclude gs nope
+    alias gs="git status"
+    LBUFFER="gs"
+    expand-alias-word
+    print "done"'
+  assert_success
+  assert_line "done"
+  refute_line "zle: _expand_alias"
+}
+
+@test "the include zstyle expands an alias named after a command" {
+  z1_zsh 'source $Z1
+    zle() { print "zle: $*"; }
+    zstyle ":z1:editor:expand-alias" include ls
+    LBUFFER="ls"
+    expand-alias-word'
+  assert_success
+  assert_line "zle: _expand_alias"
+}
+
+@test "exclude beats include" {
+  z1_zsh 'source $Z1
+    zle() { print "zle: $*"; }
+    zstyle ":z1:editor:expand-alias" exclude gs
+    zstyle ":z1:editor:expand-alias" include gs
+    alias gs="git status"
+    LBUFFER="gs"
+    expand-alias-word
+    print "done"'
+  assert_success
+  assert_line "done"
+  refute_line "zle: _expand_alias"
+}
+
+@test "only the last word on the line is considered" {
+  z1_zsh 'source $Z1
+    zle() { print "zle: $*"; }
+    zstyle ":z1:editor:expand-alias" exclude gs
+    alias gs="git status" ll="ls -l"
+    LBUFFER="gs; ll"
+    expand-alias-word'
+  assert_success
+  assert_line "zle: _expand_alias"
+}
