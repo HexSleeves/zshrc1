@@ -10,21 +10,19 @@
 # The z1 release this file came from. Managed by bump2version.
 Z1_VERSION=2.0.1
 
+# Load .zstyles first so all customizations are known. Override with ZSTYLESFILE or
+# with `zstyle ':z1:zstyles' skip true`.
+ZSTYLESFILE="${ZSTYLESFILE:-${ZDOTDIR:-$HOME}/.zstyles}"
+if ! zstyle -t ':z1:zstyles' skip && ! zstyle -t ':z1:zstyles' loaded; then
+  [[ -r $ZSTYLESFILE ]] && . $ZSTYLESFILE
+  zstyle ':z1:zstyles' loaded 'yes'
+fi
+
 # Set Zsh location vars.
 ZSH_CONFIG_DIR="${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
 ZSH_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
 ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
 mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
-
-# Set any zstyles you might use for configuration. To skip .zstyles entirely, or
-# to source it yourself instead of here, set one of these:
-#   zstyle ':z1:zstyles' skip 'yes'
-#   zstyle ':z1:zstyles' loaded 'yes'
-if ! zstyle -t ':z1:zstyles' skip && ! zstyle -t ':z1:zstyles' loaded; then
-  [ -r $ZSH_CONFIG_DIR/.zstyles ] \
-  && . $ZSH_CONFIG_DIR/.zstyles
-  zstyle ':z1:zstyles' loaded 'yes'
-fi
 
 # Run a command that prints Zsh code and source its output, keeping a cached copy so
 # later shells benefit.

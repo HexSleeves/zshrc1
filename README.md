@@ -90,8 +90,9 @@ Since `z1` sets up the basics everything else builds on, list it first.
 
 ## Configuration
 
-`z1` is configured with zstyles. Set them in `$ZDOTDIR/.zstyles`, which `z1` sources for
-you, or anywhere in your `.zshrc` before `z1` loads.
+`z1` is configured with zstyles. Set them in `$ZDOTDIR/.zstyles`, which `z1` sources
+before it reads any style of its own, so that one file is enough. `.zshrc` before the
+`source` line works too, and is the only option for the handful of things noted below.
 
 | Context                   | Style          | Default                                    | What it does                                                      |
 | ------------------------- | -------------- | ------------------------------------------ | ----------------------------------------------------------------- |
@@ -154,7 +155,7 @@ It covers the three places `z1` loads files for you (`.zstyles`, `$ZFUNCDIR`, an
 yourself:
 
 ```zsh
-# .zshrc, before z1 loads
+# .zstyles
 zstyle ':z1:zfunctions' skip 'yes'
 ```
 
@@ -164,8 +165,17 @@ As with `cache`, one pattern covers all of them:
 zstyle ':z1:*' skip 'yes'
 ```
 
-These have to be set in your `.zshrc` before `z1` loads. Your `.zstyles` is too late,
-since sourcing it is one of the things `skip` governs.
+`:z1:zstyles` is the exception, since sourcing `.zstyles` is the thing it governs. That
+one has to be in your `.zshrc` ahead of the `source` line, along with `$ZSTYLESFILE` if
+you keep the file somewhere else:
+
+```zsh
+# .zshrc, before z1 loads
+zstyle ':z1:zstyles' skip 'yes'
+```
+
+Everything else can live in `.zstyles`, since `z1` loads it before it reads a style of
+its own.
 
 ### Prompt
 
@@ -197,6 +207,7 @@ or are conventional names from elsewhere.
 | ---------------- | --------------------------------------- | ----------------------------------------------- |
 | `ZFUNCDIR`       | `$ZSH_CONFIG_DIR/functions`             | Directory of functions to autoload              |
 | `ZSH_BINDKEY`    | see `:z1:editor` `keymap`               | Wins over the zstyle when set before `z1` loads |
+| `ZSTYLESFILE`    | `${ZDOTDIR:-$HOME}/.zstyles`            | The zstyles file `z1` sources on the way in     |
 | `ZSH_COMPDUMP`   | see `:z1:compinit` `dumpfile`           | Wins over the zstyle when set before `z1` loads |
 | `ZSH_CONFIG_DIR` | `$ZDOTDIR`, else `$XDG_CONFIG_HOME/zsh` | Where your config lives                         |
 | `ZSH_DATA_DIR`   | `$XDG_DATA_HOME/zsh`                    | Where data that should persist lives            |

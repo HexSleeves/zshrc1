@@ -96,3 +96,31 @@ EOS
   assert_success
   assert_line "rc: 0"
 }
+
+@test "ZSTYLESFILE points at the file z1 loads" {
+  z1_zsh 'source $Z1; print "file: $ZSTYLESFILE"'
+  assert_success
+  assert_line "file: $TEST_HOME/.config/zsh/.zstyles"
+}
+
+@test "a preset ZSTYLESFILE moves the file" {
+  write_file "$TEST_HOME/elsewhere.zsh" "zstyle ':demo:from' elsewhere 'yes'"
+
+  z1_zsh <<'EOS'
+ZSTYLESFILE=$HOME/elsewhere.zsh
+source $Z1
+zstyle -t ':demo:from' elsewhere && print "sourced: yes" || print "sourced: no"
+[[ -f $HOME/runs ]] && print "default: yes" || print "default: no"
+EOS
+  assert_success
+  assert_line "sourced: yes"
+  assert_line "default: no"
+}
+
+@test "a missing ZSTYLESFILE is not an error" {
+  z1_zsh 'ZSTYLESFILE=$HOME/nope.zsh
+    source $Z1
+    print "rc: $?"'
+  assert_success
+  assert_line "rc: 0"
+}
