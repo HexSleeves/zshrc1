@@ -137,3 +137,15 @@ EOS
   assert_success
   assert_line "rc: 1"
 }
+
+# The cached file is sourced outside the function's own emulate, so it can set
+# options the way any other config file does.
+@test "a cached file can setopt" {
+  stub_command "optsetter" "print 'setopt cdable_vars'"
+
+  z1_zsh 'source $Z1
+    cached-eval optsetter
+    [[ -o cdablevars ]] && print "opt: on" || print "opt: off"'
+  assert_success
+  assert_line "opt: on"
+}

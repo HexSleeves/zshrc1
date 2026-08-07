@@ -33,56 +33,60 @@ fi
 [[ -d $ZSH_CONFIG_DIR && -d $ZSH_DATA_DIR && -d $ZSH_CACHE_DIR ]] \
 || mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
 
-# Run a command that prints Zsh code and source its output, keeping a cached copy so
-# later shells benefit.
+# Source a command's Zsh output, caching it in $ZSH_CACHE_DIR for 20 hours. Only
+# for commands with stable output.
 #   cached-eval brew shellenv
-# Caches live in $ZSH_CACHE_DIR and lasts 20 hours. Be careful to only cache commands
-# with stable output. To reset the cache, use --clear:
-#   cached-eval --clear brew shellenv  # just clear brew shellenv
+#   cached-eval --clear brew shellenv  # clear one
 #   cached-eval --clear                # clear all
 function cached-eval() {
-  emulate -L zsh
-  setopt local_options extended_glob
+  local sourcefile=''
 
-  local cachedir=$ZSH_CACHE_DIR/cached-eval
-  [[ -n "$ZSH_CACHE_DIR" ]] || return 1
+  # Refresh under our options, source under yours, so a cached file can setopt.
+  () {
+    emulate -L zsh
+    setopt local_options extended_glob
 
-  local -i clear=0
-  [[ "$1" == --clear ]] && { clear=1; shift }
+    local cachedir=$ZSH_CACHE_DIR/cached-eval
+    [[ -n "$ZSH_CACHE_DIR" ]] || return 1
 
-  # A bare --clear takes out every cache.
-  if (( clear && ! $# )); then
-    command rm -f $cachedir/*(N.)
-    return
-  fi
-  (( $# )) || return 1
+    local -i clear=0
+    [[ "$1" == --clear ]] && { clear=1; shift }
 
-  # Name the cache file after the command, with a djb2 hash of the whole command
-  # line so that different arguments, or two same-named commands in different
-  # places, each get their own cache.
-  local c
-  local -i hash=5381
-  for c in ${(s::)${(j: :)@}}; do
-    (( hash = (hash * 33 + #c) % 4294967296 ))
-  done
-  local cachefile=$cachedir/${1:t}-${hash}.zsh
-
-  if (( clear )); then
-    command rm -f $cachefile
-    return
-  fi
-
-  # Rebuild via a temp file so a failed command doesn't poison the cache.
-  if [[ -z $cachefile(#qNmh-20) ]]; then
-    mkdir -p $cachefile:h
-    if ! "$@" >| $cachefile.$$; then
-      command rm -f $cachefile.$$
-      return 1
+    # A bare --clear takes out every cache.
+    if (( clear && ! $# )); then
+      command rm -f $cachedir/*(N.)
+      return
     fi
-    command mv -f $cachefile.$$ $cachefile
-  fi
+    (( $# )) || return 1
 
-  source $cachefile
+    # Hash the whole command line, so different args get different caches.
+    local c
+    local -i hash=5381
+    for c in ${(s::)${(j: :)@}}; do
+      (( hash = (hash * 33 + #c) % 4294967296 ))
+    done
+    local cachefile=$cachedir/${1:t}-${hash}.zsh
+
+    if (( clear )); then
+      command rm -f $cachefile
+      return
+    fi
+
+    # Rebuild via a temp file so a failed command doesn't poison the cache.
+    if [[ -z $cachefile(#qNmh-20) ]]; then
+      mkdir -p $cachefile:h
+      if ! "$@" >| $cachefile.$$; then
+        command rm -f $cachefile.$$
+        return 1
+      fi
+      command mv -f $cachefile.$$ $cachefile
+    fi
+
+    sourcefile=$cachefile
+  } "$@" || return 1
+
+  [[ -n "$sourcefile" ]] || return 0  # --clear leaves nothing to source
+  source $sourcefile
 }
 
 #
