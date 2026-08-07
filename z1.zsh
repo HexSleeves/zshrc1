@@ -702,11 +702,14 @@ fi
 #   zstyle ':z1:zfunctions' skip 'yes'
 if ! zstyle -t ':z1:zfunctions' skip; then
   export ZFUNCDIR=${ZFUNCDIR:-$ZSH_CONFIG_DIR/functions}
-  for _zfndir in $ZFUNCDIR(-/FN) $ZFUNCDIR/*(-/FN); do
+  for _zfndir in $ZFUNCDIR(-/FN) $ZFUNCDIR/***/*(-/FN); do
     fpath=($_zfndir $fpath)
-    autoload -Uz $_zfndir/*~*/_*(N.:t)
+    _zfnfiles=($_zfndir/*~*/_*(N-.:t))
+    if (( $#_zfnfiles )); then
+      autoload -Uz $_zfnfiles
+    fi
   done
-  unset _zfndir
+  unset _zfn{files,dir}
 fi
 
 #
