@@ -104,7 +104,6 @@ before it reads any style of its own, so that one file is enough. `.zshrc` befor
 | `:z1:confd`                  | `skip`         | off                                        | Never source `conf.d`. `run_confd` still works when called        |
 | `:z1:editor`                 | `expand-alias` | off                                        | Bind space and enter to expand the alias you just typed           |
 | `:z1:editor`                 | `keymap`       | `emacs`                                    | Line editor keymap. Set it to `vi` for vi mode                    |
-| `:z1:editor:accept-line`     | `debug`        | off                                        | Print each `accept-line` hook as it runs                          |
 | `:z1:editor:default-command` | `command`      | none                                       | Run this when you press Enter on an empty line                    |
 | `:z1:editor:default-command` | `git-command`  | none                                       | Same, but inside a git checkout                                   |
 | `:z1:editor:default-command` | `jj-command`   | none                                       | Same, but inside a jj workspace                                   |
@@ -119,7 +118,6 @@ before it reads any style of its own, so that one file is enough. `.zshrc` befor
 | `:z1:homebrew`               | `cache`        | off                                        | Cache `brew shellenv` output rather than running it each startup  |
 | `:z1:homebrew`               | `skip`         | off                                        | Never run `brew shellenv`, for when you have run it yourself      |
 | `:z1:path`                   | `prepath`      | `~/{s,}bin ~/.local/{s,}bin`               | Entries kept at the front of `$path`                              |
-| `:z1:post_zshrc`             | `debug`        | off                                        | Print each `post_zshrc` hook as it runs                           |
 | `:z1:xdg-basedirs`           | `enable`       | on                                         | Put config, data, and cache in the XDG directories                |
 | `:z1:zfunctions`             | `skip`         | off                                        | Leave `$ZFUNCDIR` off `fpath` and autoload nothing from it        |
 | `:z1:zstyles`                | `loaded`       | off                                        | Set it yourself to stop `z1` sourcing your `.zstyles`             |
@@ -216,6 +214,20 @@ moving the rest. That one has to be in your `.zshrc`, since it decides where thi
 ```zsh
 # .zshrc, before z1 loads
 ZSH_CACHE_DIR=$HOME/.cache/zsh
+```
+
+The `debug` styles print to stderr as things run, for when a hook of yours isn't firing
+and you want to see the order:
+
+| Context                  | Style   | Default | What it does                             |
+| ------------------------ | ------- | ------- | ---------------------------------------- |
+| `:z1:editor:accept-line` | `debug` | off     | Print each `accept-line` hook as it runs |
+| `:z1:post_zshrc`         | `debug` | off     | Print each `post_zshrc` hook as it runs  |
+
+As with `cache` and `skip`, one pattern turns them all on:
+
+```zsh
+zstyle ':z1:*' debug 'yes'
 ```
 
 ### Prompt
