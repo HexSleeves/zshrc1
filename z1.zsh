@@ -546,7 +546,7 @@ esac
 zmodload zsh/terminfo 2>/dev/null
 
 # Allow Ctrl+S/Ctrl+Q for shell editing.
-if [[ -r ${TTY:-} && -w ${TTY:-} && $+commands[stty] == 1 ]]; then
+if [[ -o interactive && -r ${TTY:-} && -w ${TTY:-} && $+commands[stty] == 1 ]]; then
   stty -ixon <"$TTY" >"$TTY"
 fi
 

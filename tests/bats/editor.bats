@@ -306,6 +306,20 @@ teardown() { z1_teardown; }
   assert_line "visual: nano"
 }
 
+# stty -ixon writes terminal settings, which stops the shell with SIGTTOU when
+# it runs in a background process group. A non-interactive z1 has no line
+# editor to unblock Ctrl+S for, so it must not touch the terminal at all.
+# $TTY points at /dev/null so the check does not depend on how the suite ran.
+@test "a non-interactive shell does not touch the terminal" {
+  stub_command stty 'print ran >>$HOME/stty-ran'
+
+  z1_zsh 'TTY=/dev/null
+    source $Z1
+    [[ -f $HOME/stty-ran ]] && print "stty: ran" || print "stty: skipped"'
+  assert_success
+  assert_line "stty: skipped"
+}
+
 @test "a preset VISUAL is left alone" {
   z1_zsh 'VISUAL=code; source $Z1; print "visual: $VISUAL"'
   assert_success
