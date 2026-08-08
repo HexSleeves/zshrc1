@@ -150,8 +150,9 @@ fi
 export PAGER="${PAGER:-less}"
 export LANG="${LANG:-en_US.UTF-8}"
 export LESS="${LESS:--g -i -M -R -S -w -z-4}"
-export EDITOR="${EDITOR:-vim}"
-export VISUAL="${VISUAL:-vim}"
+# Newest vi wins.
+export EDITOR="${EDITOR:-${${commands[nvim]:-${commands[vim]:-${commands[vi]:-vim}}}:t}}"
+export VISUAL="${VISUAL:-$EDITOR}"
 
 # Reduce vi-mode switch lag.
 export KEYTIMEOUT=${KEYTIMEOUT:-1}

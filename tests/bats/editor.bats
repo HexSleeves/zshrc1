@@ -62,17 +62,17 @@ teardown() { z1_teardown; }
 }
 
 # An unrecognized value is left to zsh, which picks its default from $EDITOR.
-# z1 sets EDITOR=vim just above, so an unknown keymap lands on vi bindings
-# rather than emacs. A typo like `vim` gets vi mode, not a warning.
+# Every vi z1 picks has "vi" in the name, so an unknown keymap lands on vi
+# bindings rather than emacs. A typo like `vim` gets vi mode, not a warning.
 @test "an unknown keymap falls through to zsh's own default" {
   z1_zsh 'zstyle ":z1:editor" keymap nonsense
     source $Z1
     print "rc: $?"
-    print "editor: $EDITOR"
+    [[ $EDITOR == *vi* ]] && print "editor: vi-ish" || print "editor: $EDITOR"
     bindkey -lL main'
   assert_success
   assert_line "rc: 0"
-  assert_line "editor: vim"
+  assert_line "editor: vi-ish"
   assert_line "bindkey -A viins main"
 }
 
@@ -275,4 +275,39 @@ teardown() { z1_teardown; }
     expand-alias-word'
   assert_success
   assert_line "zle: _expand_alias"
+}
+
+# $EDITOR names a command, not an alias, since git and friends exec it.
+@test "EDITOR picks the newest vi on the system" {
+  stub_command nvim 'true'
+  stub_command vim 'true'
+
+  z1_zsh 'source $Z1; print "editor: $EDITOR"; print "visual: $VISUAL"'
+  assert_success
+  assert_line "editor: nvim"
+  assert_line "visual: nvim"
+}
+
+# Whichever branch of the fallback chain wins, the answer is some vi. That
+# holds without caring which of them the machine actually has.
+@test "EDITOR lands on a vi either way" {
+  z1_zsh 'source $Z1
+    [[ $EDITOR == *vi* ]] && print "editor: vi-ish" || print "editor: $EDITOR"'
+  assert_success
+  assert_line "editor: vi-ish"
+}
+
+@test "a preset EDITOR wins, and VISUAL follows it" {
+  stub_command nvim 'true'
+
+  z1_zsh 'EDITOR=nano; source $Z1; print "editor: $EDITOR"; print "visual: $VISUAL"'
+  assert_success
+  assert_line "editor: nano"
+  assert_line "visual: nano"
+}
+
+@test "a preset VISUAL is left alone" {
+  z1_zsh 'VISUAL=code; source $Z1; print "visual: $VISUAL"'
+  assert_success
+  assert_line "visual: code"
 }
