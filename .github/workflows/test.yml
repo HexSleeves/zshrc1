@@ -15,8 +15,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - run: sudo apt-get update && sudo apt-get install -y zsh bats
+      - run: sudo apt-get update && sudo apt-get install -y zsh bats parallel
         if: ${{ runner.os == 'Linux' }}
-      - run: brew install bats-core
+      - run: brew install bats-core parallel
         if: ${{ runner.os == 'macOS' }}
       - run: ./tests/run
