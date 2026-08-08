@@ -167,6 +167,7 @@ fi
 
 # 16.2.3 Expansion and Globbing
 setopt extended_glob           # Use extended globbing syntax.
+setopt glob_dots               # Match hidden dotfiles too.
 
 #
 # IO

@@ -79,14 +79,14 @@ EOS
 # so what they set has to outlive the function that sourced them.
 @test "setopts, aliases and variables set in conf.d survive" {
   write_file "$CONFD/10-opts.zsh" \
-    'setopt glob_dots' \
+    'setopt cdable_vars' \
     'alias confdalias=true' \
     'CONFD_VAR=kept'
 
   z1_zsh <<'EOS'
 source $Z1
 run_confd
-[[ -o glob_dots ]] && print "setopt: kept" || print "setopt: lost"
+[[ -o cdable_vars ]] && print "setopt: kept" || print "setopt: lost"
 (( $+aliases[confdalias] )) && print "alias: kept" || print "alias: lost"
 print "var: $CONFD_VAR"
 EOS
