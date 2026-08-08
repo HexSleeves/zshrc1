@@ -62,6 +62,30 @@ z1_zsh() {
     zsh -f -c "$body"
 }
 
+# Drive a real zle session under a pseudo-terminal. The body is a key script
+# for the zletest.zsh helpers; the output is the numbered probe log. Set
+# $Z1_ZLE_RC to a file to have the session load it after z1.
+z1_zle() {
+  local body
+  if (( $# )); then
+    body="$*"
+  else
+    body="$(cat)"
+  fi
+  printf '%s\n' "$body" >"$TEST_HOME/scenario.zsh"
+  run env -i \
+    PATH="${Z1_TEST_PATH:-$PATH}" \
+    HOME="$TEST_HOME" \
+    ZDOTDIR="$TEST_HOME/.config/zsh" \
+    XDG_CONFIG_HOME="$TEST_HOME/.config" \
+    XDG_CACHE_HOME="$TEST_HOME/.cache" \
+    XDG_DATA_HOME="$TEST_HOME/.local/share" \
+    TERM=xterm-256color \
+    Z1="$PRJDIR/z1.zsh" \
+    Z1_ZLE_RC="${Z1_ZLE_RC:-}" \
+    zsh "$PRJDIR/tests/bats/helpers/zletest.zsh" "$TEST_HOME/scenario.zsh"
+}
+
 # Write an executable stub into $HOME/bin. That directory is in z1's default
 # prepath, so a stub shadows the real command even when one is installed.
 stub_command() {

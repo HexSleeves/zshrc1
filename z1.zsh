@@ -8,7 +8,7 @@
 0=${(%):-%N}
 
 # The z1 release this file came from. Managed by bump2version.
-Z1_VERSION=2.0.1
+Z1_VERSION=2.1.0
 
 # Load .zstyles first so all customizations are known. Override with ZSTYLESFILE or
 # with `zstyle ':z1:zstyles' skip true`.
@@ -623,9 +623,11 @@ function bindkey-all() {
 
 # Bind one widget to multiple key sequences; skip empties.
 function bindkey-multiple() {
+  local -a keymap=()
+  [[ "$1" == -M ]] && { keymap=(-M "$2"); shift 2 }
   local widget=$1 seq; shift
   for seq in "$@"; do
-    [[ -n "$seq" ]] && bindkey "$seq" "$widget"
+    [[ -n "$seq" ]] && bindkey $keymap "$seq" "$widget"
   done
 }
 
@@ -781,14 +783,123 @@ if (( ! $+functions[accept-line-with-hooks] )); then
   zle -N accept-line accept-line-with-hooks
 fi
 
-# Common terminal key fixes: terminfo first, xterm CSI fallbacks second.
+# Up and Down history search: substring search from the first and last lines,
+# move between lines anywhere else, keep searching once started.
+typeset -g _z1_search_query=
+typeset -g _z1_search_result=
+typeset -gi _z1_search_histno=0
+
+# Still searching if the line is untouched since the last match and the cursor
+# is still at the end, where a match parks it. Editing or moving the cursor
+# leaves search. $LASTWIDGET cannot be the latch: an inner `zle` call
+# rewrites it.
+function history-search-in-progress() {
+  [[ -n $_z1_search_result && $BUFFER == "$_z1_search_result" ]] || return 1
+  # vi command mode rests the cursor on the last character, not past it.
+  local -i end=$#BUFFER
+  [[ $KEYMAP == vicmd ]] && (( end-- ))
+  (( CURSOR == end ))
+}
+
+# One step, $1 up or down. HISTNO never moves: zle stashes buffer edits on
+# every entry it leaves, and a stashed blank kills downward motion.
+function history-search-step() {
+  local -i i step last=$((HISTNO - 1))
+  if ! history-search-in-progress; then
+    _z1_search_query=$BUFFER
+    _z1_search_histno=$HISTNO
+  fi
+  [[ $1 == up ]] && step=-1 || step=1
+  for (( i = _z1_search_histno + step; i >= 1 && i <= last; i += step )); do
+    [[ -n $history[$i] && $history[$i] == *"$_z1_search_query"* ]] || continue
+    [[ $history[$i] == "$BUFFER" ]] && continue
+    BUFFER=$history[$i]
+    _z1_search_histno=$i
+    _z1_search_result=$BUFFER
+    CURSOR=$#BUFFER
+    return
+  done
+  # Down past the newest match restores the typed line.
+  if [[ $1 == down ]]; then
+    BUFFER=$_z1_search_query
+    _z1_search_histno=$HISTNO
+    _z1_search_result=
+    CURSOR=$#BUFFER
+  fi
+}
+
+# Paint the matched substring, and unpaint on the edit that ends the search.
+# The memo tag marks the span as ours; it needs zsh 5.9. The last span covering
+# a character wins and highlighters append theirs on every redraw, so
+# re-register at post_zshrc to run after any highlighter loaded later.
+autoload -Uz is-at-least add-zle-hook-widget
+function history-search-highlight() {
+  region_highlight=(${region_highlight:#*memo=z1-history-search})
+  history-search-in-progress && [[ -n $_z1_search_query ]] || return 0
+  local style prefix=${BUFFER%%"$_z1_search_query"*}
+  [[ $prefix == "$BUFFER" ]] && return 0
+  zstyle -s ':z1:editor' search-highlight style || style=standout
+  region_highlight+=("$#prefix $(($#prefix + $#_z1_search_query)) $style memo=z1-history-search")
+}
+function history-search-highlight-last() {
+  add-zle-hook-widget -d line-pre-redraw history-search-highlight
+  add-zle-hook-widget line-pre-redraw history-search-highlight
+}
+if is-at-least 5.9; then
+  add-zle-hook-widget line-pre-redraw history-search-highlight
+  add-post-zshrc-hook history-search-highlight-last
+fi
+
+# A half-typed multi-line command lives in $PREBUFFER with only the PS2 line
+# in $BUFFER, so pull the whole construct into one buffer first.
+function pull-prebuffer-into-buffer() {
+  [[ -n $PREBUFFER ]] || return 1
+  _z1_search_result=
+  zle .push-line-or-edit
+}
+
+function up-line-or-history-search() {
+  if history-search-in-progress; then
+    history-search-step up
+  elif ! pull-prebuffer-into-buffer; then
+    if [[ $LBUFFER == *$'\n'* ]]; then
+      _z1_search_result=
+      zle .up-line
+    else
+      history-search-step up
+    fi
+  fi
+}
+zle -N up-line-or-history-search
+
+function down-line-or-history-search() {
+  if history-search-in-progress; then
+    history-search-step down
+  elif ! pull-prebuffer-into-buffer; then
+    if [[ $RBUFFER == *$'\n'* ]]; then
+      _z1_search_result=
+      zle .down-line
+    else
+      history-search-step down
+    fi
+  fi
+}
+zle -N down-line-or-history-search
+
+# Common terminal key fixes: terminfo first, xterm fallbacks second. Arrows
+# take both fallbacks, since terminfo names only the one its terminal sends and
+# a stray SS3 arrow would otherwise miss the search widgets.
 bindkey-multiple beginning-of-line                 "${terminfo[khome]-}" '^[[H'
 bindkey-multiple end-of-line                       "${terminfo[kend]-}"  '^[[F'
 bindkey-multiple delete-char                       "${terminfo[kdch1]-}" '^[[3~'
-bindkey-multiple history-beginning-search-backward "${terminfo[kcuu1]-}" '^[[A'
-bindkey-multiple history-beginning-search-forward  "${terminfo[kcud1]-}" '^[[B'
+bindkey-multiple up-line-or-history-search         "${terminfo[kcuu1]-}" '^[[A' '^[OA'
+bindkey-multiple down-line-or-history-search       "${terminfo[kcud1]-}" '^[[B' '^[OB'
 bindkey-multiple backward-word                     '^[[1;3D' '^[[1;5D'   # Alt/Ctrl + Left
 bindkey-multiple forward-word                      '^[[1;3C' '^[[1;5C'   # Alt/Ctrl + Right
+
+# Vi keybindings.
+bindkey-multiple -M vicmd up-line-or-history-search   "${terminfo[kcuu1]-}" '^[[A' '^[OA'
+bindkey-multiple -M vicmd down-line-or-history-search "${terminfo[kcud1]-}" '^[[B' '^[OB'
 
 # Backspace and word deletion.
 bindkey '^?' backward-delete-char

@@ -480,3 +480,194 @@ teardown() { z1_teardown; }
   assert_success
   assert_line "visual: code"
 }
+
+# History search on Up and Down, driven through a real zle under a
+# pty: stubbed zle stayed green while the real thing was broken. The pty
+# shell's history is `echo one`, `echo two`, and a three-line `function foo`.
+# Probe lines are numbered in event order.
+
+@test "up from an empty line recalls whole entries, newest first" {
+  z1_zle '
+    press up
+    press up
+    press up'
+  assert_success
+  assert_line "1: BUF=[function foo {|  echo bar|}] CUR=27 PRE=[]"
+  assert_line "2: BUF=[echo two] CUR=8 PRE=[]"
+  assert_line "3: BUF=[echo one] CUR=8 PRE=[]"
+}
+
+@test "down walks back and then restores the typed line" {
+  z1_zle '
+    press up; press up; press up
+    press down; press down; press down'
+  assert_success
+  assert_line "3: BUF=[echo one] CUR=8 PRE=[]"
+  assert_line "4: BUF=[echo two] CUR=8 PRE=[]"
+  assert_line "5: BUF=[function foo {|  echo bar|}] CUR=27 PRE=[]"
+  assert_line "6: BUF=[] CUR=0 PRE=[]"
+}
+
+@test "the search matches substrings" {
+  z1_zle '
+    type-keys "bar"
+    press up'
+  assert_success
+  assert_line "1: BUF=[bar] CUR=3 PRE=[]"
+  assert_line "2: BUF=[function foo {|  echo bar|}] CUR=27 PRE=[]"
+}
+
+@test "the query keeps filtering across presses" {
+  z1_zle '
+    type-keys "echo"
+    press up; press up; press up'
+  assert_success
+  assert_line "2: BUF=[function foo {|  echo bar|}] CUR=27 PRE=[]"
+  assert_line "3: BUF=[echo two] CUR=8 PRE=[]"
+  assert_line "4: BUF=[echo one] CUR=8 PRE=[]"
+}
+
+@test "a search with no match leaves the line alone" {
+  z1_zle '
+    type-keys "zzz"
+    press up'
+  assert_success
+  assert_line "2: BUF=[zzz] CUR=3 PRE=[]"
+}
+
+# Editing what came back ends the search, so Up and Down go back to moving
+# between lines. The cursor numbers are columns kept while changing lines.
+@test "editing a recall ends the search and restores line movement" {
+  z1_zle '
+    press up
+    type-keys " "
+    press up; press up
+    press down; press down'
+  assert_success
+  assert_line "2: BUF=[function foo {|  echo bar|} ] CUR=28 PRE=[]"
+  assert_line "3: BUF=[function foo {|  echo bar|} ] CUR=17 PRE=[]"
+  assert_line "4: BUF=[function foo {|  echo bar|} ] CUR=2 PRE=[]"
+  assert_line "5: BUF=[function foo {|  echo bar|} ] CUR=17 PRE=[]"
+  assert_line "6: BUF=[function foo {|  echo bar|} ] CUR=28 PRE=[]"
+}
+
+# The match is painted, and the paint comes off on the edit that ends the
+# search.
+@test "a match highlights the query, and editing unpaints it" {
+  z1_zle '
+    type-keys "bar"
+    press up
+    probe-hl
+    type-keys " "
+    probe-hl'
+  assert_success
+  assert_line "2: BUF=[function foo {|  echo bar|}] CUR=27 PRE=[]"
+  assert_line "3: RH=[22 25 standout memo=z1-history-search]"
+  assert_line "5: RH=[]"
+}
+
+# The last span covering a character wins, so our paint has to land after a
+# highlighter's. The stand-in hooks line-pre-redraw after z1, the way a
+# highlighter loaded later in .zshrc would.
+@test "a match outpaints a highlighter that loaded later" {
+  write_file "$TEST_HOME/highlighter.zsh" \
+    'autoload -Uz add-zle-hook-widget' \
+    'function fake-highlighter() {' \
+    '  region_highlight=(${region_highlight:#*memo=fake-highlighter})' \
+    '  [[ -n $BUFFER ]] || return 0' \
+    '  region_highlight+=("0 $#BUFFER fg=blue memo=fake-highlighter")' \
+    '}' \
+    'add-zle-hook-widget line-pre-redraw fake-highlighter'
+  Z1_ZLE_RC="$TEST_HOME/highlighter.zsh" z1_zle '
+    type-keys "bar"
+    press up
+    probe-hl'
+  assert_success
+  assert_line "3: RH=[0 27 fg=blue memo=fake-highlighter,22 25 standout memo=z1-history-search]"
+}
+
+# Moving the cursor leaves search, so the paint comes off and the next Up
+# moves a line instead of continuing the search.
+@test "moving the cursor ends the search and unpaints" {
+  z1_zle '
+    type-keys "bar"
+    press up
+    probe-hl
+    press left
+    probe-hl
+    press up'
+  assert_success
+  assert_line "3: RH=[22 25 standout memo=z1-history-search]"
+  assert_line "5: RH=[]"
+  assert_line "6: BUF=[function foo {|  echo bar|}] CUR=15 PRE=[]"
+}
+
+# Plain history walking has no query, so nothing gets painted.
+@test "an empty query paints nothing" {
+  z1_zle '
+    press up
+    probe-hl'
+  assert_success
+  assert_line "1: BUF=[function foo {|  echo bar|}] CUR=27 PRE=[]"
+  assert_line "2: RH=[]"
+}
+
+# The first Up pulls a PS2 continuation out of $PREBUFFER into one buffer, and
+# the next moves between its lines.
+@test "a PS2 continuation is pulled into one buffer" {
+  z1_zle '
+    enter "function bar {"
+    press up
+    press up'
+  assert_success
+  assert_line "1: BUF=[] CUR=0 PRE=[function bar {|]"
+  assert_line "2: BUF=[function bar {|] CUR=15 PRE=[]"
+  assert_line "3: BUF=[function bar {|] CUR=0 PRE=[]"
+}
+
+# vi command mode keeps the cursor on the last character rather than past it,
+# so the end-of-line the latch looks for is one short there. Miss that and a
+# search stops after a single step.
+@test "the search keeps going in vi command mode" {
+  write_file "$TEST_HOME/vi.zsh" 'bindkey -v'
+  Z1_ZLE_RC="$TEST_HOME/vi.zsh" z1_zle '
+    type-keys "echo"
+    press escape
+    press up
+    press up'
+  assert_success
+  assert_line "2: BUF=[echo] CUR=3 PRE=[]"
+  assert_line "3: BUF=[function foo {|  echo bar|}] CUR=26 PRE=[]"
+  assert_line "4: BUF=[echo two] CUR=7 PRE=[]"
+}
+
+# Which keys reach the widgets is visible from the keymaps, so these need no
+# line editor. A terminal whose kcuu1 is the CSI form, the Linux console among
+# them, leaves the SS3 arrows to zsh's own widgets unless both are bound.
+@test "both arrow encodings reach the search widgets" {
+  z1_zsh 'TERM=linux; source $Z1
+    print "kcuu1: ${(V)terminfo[kcuu1]}"
+    print "csi-up: $(bindkey "^[[A")"
+    print "ss3-up: $(bindkey "^[OA")"
+    print "csi-down: $(bindkey "^[[B")"
+    print "ss3-down: $(bindkey "^[OB")"'
+  assert_success
+  assert_line 'kcuu1: ^[[A'
+  assert_line 'csi-up: "^[[A" up-line-or-history-search'
+  assert_line 'ss3-up: "^[OA" up-line-or-history-search'
+  assert_line 'csi-down: "^[[B" down-line-or-history-search'
+  assert_line 'ss3-down: "^[OB" down-line-or-history-search'
+}
+
+# `main` is viins under vi mode, so vi command mode needs its own bindings or
+# the arrows there fall back to zsh's history widgets.
+@test "the arrows search history in vi command mode" {
+  z1_zsh 'zstyle ":z1:editor" keymap vi; source $Z1
+    print "up: $(bindkey -M vicmd "^[OA")"
+    print "down: $(bindkey -M vicmd "^[OB")"
+    print "csi-up: $(bindkey -M vicmd "^[[A")"'
+  assert_success
+  assert_line 'up: "^[OA" up-line-or-history-search'
+  assert_line 'down: "^[OB" down-line-or-history-search'
+  assert_line 'csi-up: "^[[A" up-line-or-history-search'
+}
