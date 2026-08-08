@@ -163,8 +163,8 @@ zstyle ':z1:history' savehist 500000
 zstyle ':z1:confd' directory "$ZSH_CONFIG_DIR/rc.d"
 ```
 
-Caching is off by default because a cache hides a change until it expires, after 20
-hours. Every cache shares the style name `cache`, so one pattern turns them all on:
+These caches are off by default because a cache hides a change until it expires, after
+20 hours. They share the style name `cache`, so one pattern turns them all on:
 
 ```zsh
 zstyle ':z1:*' cache 'yes'

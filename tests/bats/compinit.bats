@@ -337,13 +337,15 @@ EOS
   assert_line "cp: []"
 }
 
-@test "underscore internals are hidden from completion" {
+# Ignored is not gone: _ignored runs after _complete, so a hidden name comes
+# back on the next try rather than being unreachable.
+@test "underscore internals are deprioritized, not hidden outright" {
   z1_zsh 'source $Z1
     zstyle -s ":completion:*:functions" ignored-patterns fn
-    zstyle -s ":completion:*:parameters" ignored-patterns pm
+    zstyle -a ":completion:*" completer c
     print "functions: $fn"
-    print "parameters: $pm"'
+    print "completer: $c"'
   assert_success
   assert_line "functions: -*|_*"
-  assert_line "parameters: _*"
+  assert_line "completer: _complete _ignored _match _approximate"
 }

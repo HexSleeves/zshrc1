@@ -311,14 +311,45 @@ zstyle ':completion:*' group-name ''
 zstyle ':completion:*' verbose yes
 zstyle ':completion:*:matches' group 'yes'
 zstyle ':completion:*:descriptions' format ' %F{magenta}-- %d --%f'
+zstyle ':completion:*:messages' format ' %F{cyan}-- %d --%f'
 zstyle ':completion:*:warnings' format ' %F{yellow}-- no matches found --%f'
+
+# A list too long for the screen scrolls behind a count instead of spilling.
+zstyle ':completion:*:default' list-prompt '%S%M matches%s'
+
+# Say what a command's flags do, borrowing the argument's own description when
+# the flag has none of its own.
+zstyle ':completion:*:options' description yes
+zstyle ':completion:*:options' auto-description '%d'
 
 # Case-insensitive, then partial-word, then substring matching.
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
 
+# Escalate only as far as needed: normal matches, then the ones ignored-patterns
+# held back, then your word as a pattern, then typos at one per three characters.
+zstyle ':completion:*' completer _complete _ignored _match _approximate
+zstyle ':completion:*:match:*' original only
+zstyle ':completion:*:approximate:*' max-errors \
+  'reply=( $(( ($#PREFIX+$#SUFFIX)/3 > 7 ? 7 : ($#PREFIX+$#SUFFIX)/3 )) numeric )'
+zstyle ':completion:*:corrections' format ' %F{green}-- %d (errors: %e) --%f'
+
+# A guess belongs in the list, never on the line. Keeping the original as a match
+# means a correction is something you pick, not something that happens to you.
+zstyle ':completion:*:(approximate|correct)*:*' original true
+zstyle ':completion:*:(approximate|correct)*:*' insert-unambiguous true
+
 # Path completion polish.
 zstyle ':completion:*' squeeze-slashes true
 zstyle ':completion:*' special-dirs ..
+
+# Somewhere under here beats the dirstack, which beats anywhere on $cdpath.
+zstyle ':completion:*:*:cd:*' tag-order local-directories directory-stack path-directories
+
+# Inside $arr[...], an index is the likelier answer than a parameter name.
+zstyle ':completion:*:*:-subscript-:*' tag-order indexes parameters
+
+# What ~<tab> lists first.
+zstyle ':completion:*:-tilde-:*' group-order named-directories path-directories users expand
 
 # Cache expensive completers, versioned like the compinit dumpfile.
 zstyle ':completion:*' use-cache true
@@ -327,12 +358,29 @@ zstyle ':completion:*' cache-path "$ZSH_CACHE_DIR/zcompcache-${ZSH_VERSION}"
 # A pid, or a file to remove or diff, is never one already on the line.
 zstyle ':completion:*:(rm|kill|diff):*' ignore-line other
 
+# Killing wants the pid, not the command text that led you to it.
+zstyle ':completion:*:*:kill:*' insert-ids single
+zstyle ':completion:*:*:kill:*' force-list always
+zstyle ':completion:*:*:kill:*:processes' list-colors \
+  "=(#b) #([0-9]#) ([0-9a-z-]#)*=${color[bold]};${color[cyan]}=${color[none]}=${color[bold]}"
+
 # Anything can be deleted, so drop the pattern _rm would otherwise filter by.
 zstyle ':completion:*:rm:*' file-patterns '*:all-files'
 
-# Keep _-prefixed internals out of the list.
+# Group man pages by section, and name the section outside of section 1.
+zstyle ':completion:*:manuals' separate-sections true
+zstyle ':completion:*:manuals.(^1*)' insert-sections true
+
+# Keep the _-prefixed completion functions out of the list. _ignored brings them
+# back on the next try, so your own are deprioritized rather than hidden.
 zstyle ':completion:*:functions' ignored-patterns '-*|_*'
-zstyle ':completion:*:parameters' ignored-patterns '_*'
+
+# History words, for the hist-complete widget bound in the Editor section.
+zstyle ':completion:hist-complete:*' completer _history
+zstyle ':completion:*:history-words' stop yes
+zstyle ':completion:*:history-words' remove-all-dups yes
+zstyle ':completion:*:history-words' list false
+zstyle ':completion:*:history-words' menu yes
 
 #
 # Completion
@@ -672,6 +720,9 @@ zle -N fg-job
 autoload -Uz edit-command-line
 zle -N edit-command-line
 
+# Complete the word under the cursor from history rather than from the filesystem.
+zle -C hist-complete complete-word _generic
+
 # Auto-quote URLs on paste and as you type (prevents ? and & from globbing).
 autoload -Uz bracketed-paste-url-magic
 zle -N bracketed-paste bracketed-paste-url-magic
@@ -745,6 +796,9 @@ bindkey '^W' backward-kill-word
 
 # Edit command in $EDITOR.
 bindkey '^X^E' edit-command-line
+
+# Complete from history.
+bindkey '^X^X' hist-complete
 
 # Toggle comment at start of line. Alt-; in emacs, # in vi cmd mode.
 bindkey -M emacs '^[;' pound-toggle
