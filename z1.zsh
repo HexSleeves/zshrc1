@@ -320,6 +320,20 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:
 zstyle ':completion:*' squeeze-slashes true
 zstyle ':completion:*' special-dirs ..
 
+# Cache expensive completers, versioned like the compinit dumpfile.
+zstyle ':completion:*' use-cache true
+zstyle ':completion:*' cache-path "$ZSH_CACHE_DIR/zcompcache-${ZSH_VERSION}"
+
+# A pid, or a file to remove or diff, is never one already on the line.
+zstyle ':completion:*:(rm|kill|diff):*' ignore-line other
+
+# Anything can be deleted, so drop the pattern _rm would otherwise filter by.
+zstyle ':completion:*:rm:*' file-patterns '*:all-files'
+
+# Keep _-prefixed internals out of the list.
+zstyle ':completion:*:functions' ignored-patterns '-*|_*'
+zstyle ':completion:*:parameters' ignored-patterns '_*'
+
 #
 # Completion
 #

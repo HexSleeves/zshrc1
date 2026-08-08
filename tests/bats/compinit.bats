@@ -310,3 +310,40 @@ EOS
   assert_success
   assert_line "cache hit"
 }
+
+# Compstyles. The completion cache lives beside the dumpfile and is versioned
+# the same way, since both formats are tied to the zsh release.
+@test "the completion cache is on and versioned" {
+  z1_zsh 'source $Z1
+    zstyle -s ":completion:*" use-cache use
+    zstyle -s ":completion:*" cache-path cpath
+    print "use: $use"
+    print "path: ${cpath/$ZSH_CACHE_DIR/CACHE}"'
+  assert_success
+  assert_line "use: true"
+  assert_line "path: CACHE/zcompcache-$(zsh -c 'print $ZSH_VERSION')"
+}
+
+@test "rm, kill, and diff skip what is already on the line" {
+  z1_zsh 'source $Z1
+    for c in rm kill diff cp; do
+      zstyle -s ":completion:*:$c:*" ignore-line ig
+      print "$c: [$ig]"
+    done'
+  assert_success
+  assert_line "rm: [other]"
+  assert_line "kill: [other]"
+  assert_line "diff: [other]"
+  assert_line "cp: []"
+}
+
+@test "underscore internals are hidden from completion" {
+  z1_zsh 'source $Z1
+    zstyle -s ":completion:*:functions" ignored-patterns fn
+    zstyle -s ":completion:*:parameters" ignored-patterns pm
+    print "functions: $fn"
+    print "parameters: $pm"'
+  assert_success
+  assert_line "functions: -*|_*"
+  assert_line "parameters: _*"
+}
