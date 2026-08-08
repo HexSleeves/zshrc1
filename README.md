@@ -94,32 +94,36 @@ Since `z1` sets up the basics everything else builds on, list it first.
 before it reads any style of its own, so that one file is enough. `.zshrc` before the
 `source` line works too, and is the only option for the handful of things noted below.
 
-| Context                   | Style          | Default                                    | What it does                                                      |
-| ------------------------- | -------------- | ------------------------------------------ | ----------------------------------------------------------------- |
-| `:z1:color`               | `cache`        | off                                        | Cache `dircolors --sh` output rather than running it each startup |
-| `:z1:compinit`            | `cache`        | off                                        | Cache the completion dumpfile and take `compinit`'s fast path     |
-| `:z1:compinit`            | `dumpfile`     | `$ZSH_CACHE_DIR/ZSH_COMPDUMP-$ZSH_VERSION` | Where the completion dumpfile lives                               |
-| `:z1:compinit`            | `skip`         | off                                        | Leave `compinit` and `compdef` alone. No wrappers, no auto-run    |
-| `:z1:confd`               | `directory`    | `$ZSH_CONFIG_DIR/conf.d`                   | Directory of config files to source at the end of your `.zshrc`   |
-| `:z1:confd`               | `skip`         | off                                        | Never source `conf.d`. `run_confd` still works when called        |
-| `:z1:editor`              | `expand-alias` | off                                        | Bind space and enter to expand the alias you just typed           |
-| `:z1:editor`              | `keymap`       | `emacs`                                    | Line editor keymap. Set it to `vi` for vi mode                    |
-| `:z1:editor:emacs`        | `cursor`       | `line`                                     | Cursor shape in emacs mode                                        |
-| `:z1:editor:expand-alias` | `exclude`      | none                                       | Words `expand-alias` never expands                                |
-| `:z1:editor:expand-alias` | `include`      | none                                       | Words `expand-alias` always expands                               |
-| `:z1:editor:vicmd`        | `cursor`       | `block`                                    | Cursor shape in vi command mode                                   |
-| `:z1:editor:viins`        | `cursor`       | `line`                                     | Cursor shape in vi insert mode                                    |
-| `:z1:history`             | `histfile`     | `$ZSH_DATA_DIR/zsh_history`                | Where history is written                                          |
-| `:z1:history`             | `histsize`     | `50000`                                    | Events kept in the current session                                |
-| `:z1:history`             | `savehist`     | `100000`                                   | Events kept in the history file                                   |
-| `:z1:homebrew`            | `cache`        | off                                        | Cache `brew shellenv` output rather than running it each startup  |
-| `:z1:homebrew`            | `skip`         | off                                        | Never run `brew shellenv`, for when you have run it yourself      |
-| `:z1:path`                | `prepath`      | `~/bin ~/sbin ~/.local/bin ~/.local/sbin`  | Entries kept at the front of `$path`                              |
-| `:z1:post_zshrc`          | `debug`        | off                                        | Print each `post_zshrc` hook as it runs                           |
-| `:z1:xdg-basedirs`        | `enable`       | on                                         | Put config, data, and cache in the XDG directories                |
-| `:z1:zfunctions`          | `skip`         | off                                        | Leave `$ZFUNCDIR` off `fpath` and autoload nothing from it        |
-| `:z1:zstyles`             | `loaded`       | off                                        | Set it yourself to stop `z1` sourcing your `.zstyles`             |
-| `:z1:zstyles`             | `skip`         | off                                        | Never source your `.zstyles`, and don't mark them loaded          |
+| Context                      | Style          | Default                                    | What it does                                                      |
+| ---------------------------- | -------------- | ------------------------------------------ | ----------------------------------------------------------------- |
+| `:z1:color`                  | `cache`        | off                                        | Cache `dircolors --sh` output rather than running it each startup |
+| `:z1:compinit`               | `cache`        | off                                        | Cache the completion dumpfile and take `compinit`'s fast path     |
+| `:z1:compinit`               | `dumpfile`     | `$ZSH_CACHE_DIR/ZSH_COMPDUMP-$ZSH_VERSION` | Where the completion dumpfile lives                               |
+| `:z1:compinit`               | `skip`         | off                                        | Leave `compinit` and `compdef` alone. No wrappers, no auto-run    |
+| `:z1:confd`                  | `directory`    | `$ZSH_CONFIG_DIR/conf.d`                   | Directory of config files to source at the end of your `.zshrc`   |
+| `:z1:confd`                  | `skip`         | off                                        | Never source `conf.d`. `run_confd` still works when called        |
+| `:z1:editor`                 | `expand-alias` | off                                        | Bind space and enter to expand the alias you just typed           |
+| `:z1:editor`                 | `keymap`       | `emacs`                                    | Line editor keymap. Set it to `vi` for vi mode                    |
+| `:z1:editor:accept-line`     | `debug`        | off                                        | Print each `accept-line` hook as it runs                          |
+| `:z1:editor:default-command` | `command`      | none                                       | Run this when you press Enter on an empty line                    |
+| `:z1:editor:default-command` | `git-command`  | none                                       | Same, but inside a git checkout                                   |
+| `:z1:editor:default-command` | `jj-command`   | none                                       | Same, but inside a jj workspace                                   |
+| `:z1:editor:emacs`           | `cursor`       | `line`                                     | Cursor shape in emacs mode                                        |
+| `:z1:editor:expand-alias`    | `exclude`      | none                                       | Words `expand-alias` never expands                                |
+| `:z1:editor:expand-alias`    | `include`      | none                                       | Words `expand-alias` always expands                               |
+| `:z1:editor:vicmd`           | `cursor`       | `block`                                    | Cursor shape in vi command mode                                   |
+| `:z1:editor:viins`           | `cursor`       | `line`                                     | Cursor shape in vi insert mode                                    |
+| `:z1:history`                | `histfile`     | `$ZSH_DATA_DIR/zsh_history`                | Where history is written                                          |
+| `:z1:history`                | `histsize`     | `50000`                                    | Events kept in the current session                                |
+| `:z1:history`                | `savehist`     | `100000`                                   | Events kept in the history file                                   |
+| `:z1:homebrew`               | `cache`        | off                                        | Cache `brew shellenv` output rather than running it each startup  |
+| `:z1:homebrew`               | `skip`         | off                                        | Never run `brew shellenv`, for when you have run it yourself      |
+| `:z1:path`                   | `prepath`      | `~/{s,}bin ~/.local/{s,}bin`               | Entries kept at the front of `$path`                              |
+| `:z1:post_zshrc`             | `debug`        | off                                        | Print each `post_zshrc` hook as it runs                           |
+| `:z1:xdg-basedirs`           | `enable`       | on                                         | Put config, data, and cache in the XDG directories                |
+| `:z1:zfunctions`             | `skip`         | off                                        | Leave `$ZFUNCDIR` off `fpath` and autoload nothing from it        |
+| `:z1:zstyles`                | `loaded`       | off                                        | Set it yourself to stop `z1` sourcing your `.zstyles`             |
+| `:z1:zstyles`                | `skip`         | off                                        | Never source your `.zstyles`, and don't mark them loaded          |
 
 Of the `prepath` defaults, only the directories that exist are used. Cursor shapes are
 `block`, `underscore`, and `line`, each also with a `-blink` suffix, and are only
@@ -127,12 +131,33 @@ emitted on terminals that understand DECSCUSR.
 
 Similar to Fish abbreviations, with `expand-alias` on, space and enter replace the alias
 you just typed with what it aliased, so the line shows the command that will run.
-Alt-Space inserts a space without expanding. The `expand-alias-space` and
-`expand-alias-accept` widgets exist either way, so you can bind them yourself instead.
+Alt-Space inserts a space without expanding. The `expand-alias-space` widget exists
+either way, so you can bind it yourself instead.
 
 Global aliases always expand. A plain alias only expands when its name isn't also a
 command, so `ls='ls --color=auto'` stays readable. `include` overrides that for aliases
 you do want expanded, like `vim='nvim'`, and `exclude` wins over both.
+
+Enter on an empty line can run something for you, off until you name a command.
+`git-command` and `jj-command` apply only inside a checkout and beat `command` there, jj
+first so a colocated repo gets the jj one. The line is filled in with a leading space,
+which `hist_ignore_space` keeps out of your history:
+
+```zsh
+# .zstyles
+zstyle ':z1:editor:default-command' command 'ls'
+zstyle ':z1:editor:default-command' git-command 'git status -sb'
+```
+
+Enter goes through a single wrapper widget that anything can hook, rather than each
+feature replacing `accept-line` and clobbering whoever wrapped it first. Hooks run in
+the order added, inside the widget, so `$BUFFER` and `$CURSOR` are yours to change. A
+hook whose function has gone away is skipped, and `-d` takes one back off:
+
+```zsh
+function log-my-commands() { print -r -- "$BUFFER" >>~/.commands }
+add-accept-line-hook log-my-commands
+```
 
 ```zsh
 # .zstyles
