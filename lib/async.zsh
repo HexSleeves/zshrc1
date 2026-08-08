@@ -98,7 +98,15 @@ function async-collect() {
 
   if [[ -z "$err" || "$err" == hup ]]; then
     local previous="${async_output[$name]}"
-    IFS= read -r -u $fd -d '' "async_output[$name]"
+
+    # sysread, not `read -d ''`: reading to a delimiter makes zsh write the
+    # terminal settings, which stops the shell with SIGTTOU whenever it is not
+    # in the foreground process group.
+    local chunk collected=
+    while sysread -i $fd chunk; do
+      collected+=$chunk
+    done
+    async_output[$name]=$collected
 
     # Only meaningful inside zle, which is where the fd handler normally runs.
     if [[ "$previous" != "${async_output[$name]}" ]]; then
