@@ -162,38 +162,193 @@ teardown() { z1_teardown; }
 
 # Alias expansion. Keys are opt-in, widgets always exist so they can be bound
 # elsewhere.
-@test "the expand-alias widgets exist without the zstyle" {
+@test "the expand-alias widget exists without the zstyle" {
   z1_zsh 'source $Z1
-    print "space: ${widgets[expand-alias-space]}"
-    print "accept: ${widgets[expand-alias-accept]}"'
+    print "space: ${widgets[expand-alias-space]}"'
   assert_success
   assert_line "space: user:expand-alias-space"
-  assert_line "accept: user:expand-alias-accept"
 }
 
-@test "space and enter keep their usual widgets by default" {
+@test "space keeps its usual widget by default" {
   z1_zsh 'source $Z1
-    print "space: $(bindkey -M emacs " ")"
-    print "enter: $(bindkey -M emacs "^M")"'
+    print "space: $(bindkey -M emacs " ")"'
   assert_success
   assert_line 'space: " " self-insert'
-  assert_line 'enter: "^M" accept-line'
 }
 
-@test "the expand-alias zstyle binds space and enter" {
+@test "the expand-alias zstyle binds space and hooks accept-line" {
   z1_zsh 'zstyle ":z1:editor" expand-alias yes
     source $Z1
     print "space: $(bindkey -M emacs " ")"
-    print "enter: $(bindkey -M emacs "^M")"
     print "viins: $(bindkey -M viins " ")"
     print "alt: $(bindkey -M emacs "^[ ")"
-    print "isearch: $(bindkey -M isearch " ")"'
+    print "isearch: $(bindkey -M isearch " ")"
+    print "hooks: $accept_line_hook"'
   assert_success
   assert_line 'space: " " expand-alias-space'
-  assert_line 'enter: "^M" expand-alias-accept'
   assert_line 'viins: " " expand-alias-space'
   assert_line 'alt: "^[ " magic-space'
   assert_line 'isearch: " " magic-space'
+  assert_line 'hooks: expand-alias-word'
+}
+
+@test "nothing hooks accept-line without the zstyles" {
+  z1_zsh 'source $Z1
+    print "hooks: [$accept_line_hook]"'
+  assert_success
+  assert_line 'hooks: []'
+}
+
+# default-command runs ahead of the hooks, so a hook sees the filled-in line.
+@test "the hooks see the default command" {
+  z1_zsh 'zstyle ":z1:editor:default-command" command "print PLAIN"
+    source $Z1
+    function spy() { print "spy: [$BUFFER]" }
+    add-accept-line-hook spy
+    CONTEXT=start BUFFER=""
+    default-command
+    run-accept-line-hooks'
+  assert_success
+  assert_line 'spy: [ print PLAIN]'
+}
+
+@test "the wrapper fills the line before running the hooks" {
+  z1_zsh 'source $Z1
+    print "body: ${functions[accept-line-with-hooks]//[[:space:]]##/ }"'
+  assert_success
+  assert_output_contains "default-command run-accept-line-hooks"
+}
+
+# The hook list is a public API, so a caller has to be able to take one back off.
+@test "a hook can be added and removed" {
+  z1_zsh 'source $Z1
+    function one() { :; }; function two() { :; }
+    add-accept-line-hook one two
+    print "added: $accept_line_hook"
+    add-accept-line-hook one one
+    print "twice: $accept_line_hook"
+    add-accept-line-hook -d one
+    print "removed: $accept_line_hook"'
+  assert_success
+  assert_line "added: one two"
+  assert_line "twice: one two"
+  assert_line "removed: two"
+}
+
+# A hook whose function is gone would otherwise print an error on every Enter.
+@test "a hook that no longer exists is skipped" {
+  z1_zsh 'source $Z1
+    function gone() { :; }
+    function here() { print "here: ran" }
+    add-accept-line-hook gone here
+    unfunction gone
+    run-accept-line-hooks
+    print "rc: $?"'
+  assert_success
+  assert_line "here: ran"
+  assert_line "rc: 0"
+}
+
+@test "a failing hook does not stop the next one" {
+  z1_zsh 'source $Z1
+    function boom() { return 1 }
+    function after() { print "after: ran" }
+    add-accept-line-hook boom after
+    run-accept-line-hooks
+    print "rc: $?"'
+  assert_success
+  assert_line "after: ran"
+  assert_line "rc: 0"
+}
+
+# Enter runs a command on an empty line, and does nothing until one is set. The
+# styles are read per keypress, so setting one mid-session takes effect.
+@test "an unset default command leaves the line alone" {
+  z1_zsh 'source $Z1
+    CONTEXT=start BUFFER=""
+    default-command
+    print "before: [$BUFFER]"
+    zstyle ":z1:editor:default-command" command "print PLAIN"
+    default-command
+    print "after: [$BUFFER]"'
+  assert_success
+  assert_line 'before: []'
+  assert_line 'after: [ print PLAIN]'
+}
+
+@test "the default command fills an empty line" {
+  z1_zsh 'zstyle ":z1:editor:default-command" command "print PLAIN"
+    source $Z1
+    CONTEXT=start BUFFER=""
+    builtin cd $HOME
+    default-command
+    print "buffer: [$BUFFER] cursor: $CURSOR"'
+  assert_success
+  assert_line 'buffer: [ print PLAIN] cursor: 12'
+}
+
+@test "a busy line is left alone" {
+  z1_zsh 'zstyle ":z1:editor:default-command" command "print PLAIN"
+    source $Z1
+    CONTEXT=start BUFFER="echo hi"
+    default-command
+    print "buffer: [$BUFFER]"'
+  assert_success
+  assert_line 'buffer: [echo hi]'
+}
+
+@test "a git checkout prefers git-command" {
+  git -C "$TEST_HOME" init -q
+  z1_zsh 'zstyle ":z1:editor:default-command" command "print PLAIN"
+    zstyle ":z1:editor:default-command" git-command "print GIT"
+    source $Z1
+    CONTEXT=start BUFFER=""
+    builtin cd $HOME
+    default-command
+    print "buffer: [$BUFFER]"'
+  assert_success
+  assert_line 'buffer: [ print GIT]'
+}
+
+# jj wins over git, since a colocated repo is both.
+@test "a jj workspace prefers jj-command" {
+  git -C "$TEST_HOME" init -q
+  stub_command jj 'exit 0'
+  z1_zsh 'zstyle ":z1:editor:default-command" git-command "print GIT"
+    zstyle ":z1:editor:default-command" jj-command "print JJ"
+    source $Z1
+    CONTEXT=start BUFFER=""
+    builtin cd $HOME
+    default-command
+    print "buffer: [$BUFFER]"'
+  assert_success
+  assert_line 'buffer: [ print JJ]'
+}
+
+@test "jj outside a workspace falls through to git" {
+  git -C "$TEST_HOME" init -q
+  stub_command jj 'exit 1'
+  z1_zsh 'zstyle ":z1:editor:default-command" git-command "print GIT"
+    zstyle ":z1:editor:default-command" jj-command "print JJ"
+    source $Z1
+    CONTEXT=start BUFFER=""
+    builtin cd $HOME
+    default-command
+    print "buffer: [$BUFFER]"'
+  assert_success
+  assert_line 'buffer: [ print GIT]'
+}
+
+@test "a repo command falls back to the plain one outside a checkout" {
+  z1_zsh 'zstyle ":z1:editor:default-command" command "print PLAIN"
+    zstyle ":z1:editor:default-command" git-command "print GIT"
+    source $Z1
+    CONTEXT=start BUFFER=""
+    builtin cd $HOME
+    default-command
+    print "buffer: [$BUFFER]"'
+  assert_success
+  assert_line 'buffer: [ print PLAIN]'
 }
 
 # These call expand-alias-word with zle stubbed, since a widget needs a real

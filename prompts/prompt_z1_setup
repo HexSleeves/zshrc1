@@ -73,22 +73,19 @@ function prompt_z1_precmd {
   # from the next prompt rather than only at setup.
   if zstyle -t ':z1:prompt' transient; then
     _prompt_z1_transient="%F{${_prompt_z1_colors[cyan]}}${_prompt_z1_chars[success]}%f "
-    [[ "$widgets[accept-line]" == user:prompt_z1_accept_line ]] \
-      || zle -N accept-line prompt_z1_accept_line
   else
     _prompt_z1_transient=
-    [[ "$widgets[accept-line]" == user:prompt_z1_accept_line ]] \
-      && zle -A .accept-line accept-line
   fi
 
   PROMPT=$_prompt_z1_full
 }
 
-# Collapse an accepted line to just the character.
+# Collapse an accepted line to just the character. An empty transient string
+# means the style is off.
 function prompt_z1_accept_line {
+  [[ -n "$_prompt_z1_transient" ]] || return
   PROMPT=$_prompt_z1_transient
   zle .reset-prompt
-  zle .accept-line
 }
 
 # What the async worker runs. vcs_info fills a variable, so print it.
@@ -108,6 +105,9 @@ function prompt_z1_setup {
 
   # Add hook for calling vcs_info before each command.
   add-zsh-hook precmd prompt_z1_precmd
+
+  # Transient prompt rides z1's accept-line hook. Without z1, no collapse.
+  (( $+functions[add-accept-line-hook] )) && add-accept-line-hook prompt_z1_accept_line
 
   # vcs_info costs tens of ms per prompt, so run it off the critical path when
   # lib/async.zsh is around. %x is this file even when autoloaded.

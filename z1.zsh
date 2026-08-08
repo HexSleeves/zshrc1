@@ -664,6 +664,58 @@ zle -N bracketed-paste bracketed-paste-url-magic
 autoload -Uz url-quote-magic
 zle -N self-insert url-quote-magic
 
+# Functions to run when Enter accepts a line, in the order added. They run
+# inside a widget, so BUFFER, CURSOR, and zle all work normally.
+typeset -ga accept_line_hook
+
+# Attach a function to the accept-line event, or with -d, detach one. Adding the
+# same one twice is a no-op, and the name need not be defined yet.
+function add-accept-line-hook() {
+  local fn
+  if [[ $1 == -d ]]; then
+    shift
+    for fn in "$@"; do accept_line_hook=(${accept_line_hook:#$fn}); done
+    return
+  fi
+  for fn in "$@"; do
+    (( $accept_line_hook[(Ie)$fn] )) || accept_line_hook+=("$fn")
+  done
+}
+
+# A hook that went away is skipped rather than spelled out to the terminal on
+# every keypress. The loop variable is named oddly so hooks can use their own.
+function run-accept-line-hooks() {
+  local _z1_hook
+  for _z1_hook in $accept_line_hook; do
+    zstyle -t ':z1:editor:accept-line' debug && print -u2 "accept-line hook: $_z1_hook"
+    (( $+functions[${_z1_hook%% *}] )) && "${=_z1_hook}"
+  done
+  return 0
+}
+
+# Wrap the widget rather than rebind Enter, so ^M, ^J, vicmd Enter, and widgets
+# calling accept-line themselves all go through it. Whoever wrapped it first
+# keeps their turn. The guard stops a re-source wrapping our own wrapper.
+# default-command runs ahead of the hooks, so they see the line that will run.
+if (( ! $+functions[accept-line-with-hooks] )); then
+  case ${widgets[accept-line]} in
+    user:*)
+      zle -N accept-line-orig "${widgets[accept-line]#user:}"
+      function accept-line-with-hooks() {
+        default-command
+        run-accept-line-hooks
+        zle accept-line-orig -- "$@"
+      } ;;
+    *)
+      function accept-line-with-hooks() {
+        default-command
+        run-accept-line-hooks
+        zle .accept-line
+      } ;;
+  esac
+  zle -N accept-line accept-line-with-hooks
+fi
+
 # Common terminal key fixes: terminfo first, xterm CSI fallbacks second.
 bindkey-multiple beginning-of-line                 "${terminfo[khome]-}" '^[[H'
 bindkey-multiple end-of-line                       "${terminfo[kend]-}"  '^[[F'
@@ -713,12 +765,6 @@ function expand-alias-space() {
 }
 zle -N expand-alias-space
 
-function expand-alias-accept() {
-  expand-alias-word
-  zle accept-line
-}
-zle -N expand-alias-accept
-
 # Expanding as you type is not for everyone, so the keys are opt-in. Alt-Space
 # still lets you insert a space without expanding.
 #   zstyle ':z1:editor' expand-alias 'yes'
@@ -728,11 +774,38 @@ if zstyle -t ':z1:editor' expand-alias; then
   for _z1_keymap in emacs viins; do
     bindkey -M $_z1_keymap ' '   expand-alias-space
     bindkey -M $_z1_keymap '^[ ' magic-space
-    bindkey -M $_z1_keymap '^M'  expand-alias-accept
   done
   bindkey -M isearch ' ' magic-space
   unset _z1_keymap
+  add-accept-line-hook expand-alias-word
 fi
+
+# Run a command when you press Enter on an empty line. Nothing is set by
+# default. The repo commands only apply inside a checkout and beat the plain
+# one, jj first so a colocated repo gets the jj command.
+function default-command() {
+  # $CONTEXT is 'start' only at the main prompt, not in vared or a continuation.
+  [[ -z $BUFFER && $CONTEXT == start ]] || return
+
+  # Read the styles first: they are cheap, and nothing set means nothing to do.
+  local ctx=':z1:editor:default-command' jj git dflt
+  zstyle -s $ctx jj-command jj
+  zstyle -s $ctx git-command git
+  zstyle -s $ctx command dflt
+  [[ -n $jj$git$dflt ]] || return
+
+  if [[ -n $jj ]] && command jj st &>/dev/null; then
+    BUFFER=$jj
+  elif [[ -n $git ]] && command git rev-parse --is-inside-work-tree &>/dev/null; then
+    BUFFER=$git
+  else
+    BUFFER=$dflt
+  fi
+
+  # A leading space keeps it out of history, given hist_ignore_space.
+  [[ -n $BUFFER ]] && BUFFER=" $BUFFER"
+  CURSOR=$#BUFFER
+}
 
 #
 # Utility

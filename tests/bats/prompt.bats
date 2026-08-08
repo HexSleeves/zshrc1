@@ -227,21 +227,17 @@ setup_chars() {
   z1_zsh 'source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
     prompt_z1_precmd
-    print "widget: ${widgets[accept-line]:-builtin}"
     print "transient: [$_prompt_z1_transient]"'
   assert_success
-  assert_line "widget: builtin"
   assert_line "transient: []"
 }
 
-@test "the transient zstyle binds accept-line" {
-  z1_zsh 'zstyle ":z1:prompt" transient yes
-    source $Z1
+@test "the prompt joins the accept-line hooks" {
+  z1_zsh 'source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
-    prompt_z1_precmd
-    print "widget: ${widgets[accept-line]}"'
+    print "hooks: $accept_line_hook"'
   assert_success
-  assert_line "widget: user:prompt_z1_accept_line"
+  assert_line "hooks: prompt_z1_accept_line"
 }
 
 # Setting the style after the prompt is already running has to work, since that
@@ -250,13 +246,13 @@ setup_chars() {
   z1_zsh 'source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
     prompt_z1_precmd
-    print "before: ${widgets[accept-line]:-builtin}"
+    print "before: [$_prompt_z1_transient]"
     zstyle ":z1:prompt" transient yes
     prompt_z1_precmd
-    print "after: ${widgets[accept-line]:-builtin}"'
+    print "after: [${(V)_prompt_z1_transient}]"'
   assert_success
-  assert_line "before: builtin"
-  assert_line "after: user:prompt_z1_accept_line"
+  assert_line "before: []"
+  refute_line "after: []"
 }
 
 @test "the style can be turned off again" {
@@ -264,20 +260,13 @@ setup_chars() {
     source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
     prompt_z1_precmd
-    print "on: ${widgets[accept-line]:-builtin}"
+    print "on: [${(V)_prompt_z1_transient}]"
     zstyle ":z1:prompt" transient no
     prompt_z1_precmd
-    print "off: ${widgets[accept-line]:-builtin}"
-    print "transient: [$_prompt_z1_transient]"
-    zstyle -d ":z1:prompt" transient
-    zstyle ":z1:prompt" transient yes
-    prompt_z1_precmd
-    print "back on: ${widgets[accept-line]:-builtin}"'
+    print "off: [$_prompt_z1_transient]"'
   assert_success
-  assert_line "on: user:prompt_z1_accept_line"
-  assert_line "off: builtin"
-  assert_line "transient: []"
-  assert_line "back on: user:prompt_z1_accept_line"
+  refute_line "on: []"
+  assert_line "off: []"
 }
 
 @test "the collapsed prompt is the character in cyan, with no path" {
