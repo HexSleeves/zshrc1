@@ -642,6 +642,17 @@ function pound-toggle() {
 }
 zle -N pound-toggle
 
+# Ctrl+Z suspends a job, so let it resume one too. Whatever you had typed is
+# stashed, and comes back the next time the job stops.
+function fg-job() {
+  (( $#jobstates )) || { zle -M "fg-job: no jobs"; return }
+  (( $#BUFFER )) && zle push-input
+  # A leading space keeps fg out of history, given hist_ignore_space.
+  [[ -o hist_ignore_space ]] && BUFFER=' fg' || BUFFER='fg'
+  zle accept-line
+}
+zle -N fg-job
+
 # Edit current command in $EDITOR.
 autoload -Uz edit-command-line
 zle -N edit-command-line
@@ -675,6 +686,11 @@ bindkey -M vicmd '#' vi-pound-insert
 # Prepend sudo with Alt-s.
 bindkey -M emacs '^[s' prepend-sudo
 bindkey -M viins '^[s' prepend-sudo
+
+# Resume a job with Ctrl+Z. Unbound in emacs, and only inserts a literal ^Z in
+# viins, so nothing useful is lost. vicmd keeps its own meaning.
+bindkey -M emacs '^Z' fg-job
+bindkey -M viins '^Z' fg-job
 
 # Expand the alias under the cursor. Global aliases always expand, plain ones
 # only when not also a command name, so ls='ls --color' is left alone. The
