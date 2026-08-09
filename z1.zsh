@@ -8,7 +8,7 @@
 0=${(%):-%N}
 
 # The z1 release this file came from. Managed by bump2version.
-Z1_VERSION=2.1.0
+Z1_VERSION=3.0.0
 
 # Load .zstyles first so all customizations are known. Override with ZSTYLESFILE or
 # with `zstyle ':z1:zstyles' skip true`.
