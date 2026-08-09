@@ -671,3 +671,94 @@ teardown() { z1_teardown; }
   assert_line 'down: "^[OB" down-line-or-history-search'
   assert_line 'csi-up: "^[[A" up-line-or-history-search'
 }
+
+# Enter can accept a command that is ready to run and extend one that is not,
+# so a multi-line command is edited in one buffer instead of at a PS2 prompt.
+# The judgment is a pure function of the text, so it needs no line editor.
+@test "commands ready to run are told from unfinished ones" {
+  z1_zsh <<'EOS'
+source $Z1
+typeset -a cases=(
+  'echo hi'
+  'function foo {
+  echo bar
+}'
+  ''
+  'function foo {'
+  'for x in 1 2'
+  'cat <<END'
+  'echo "open'
+  'echo hi \'
+)
+for c in "${cases[@]}"; do
+  command-is-complete "$c" && print -r -- "ready: [${c//$'\n'/|}]" \
+                           || print -r -- "unfinished: [${c//$'\n'/|}]"
+done
+EOS
+  assert_success
+  assert_line 'ready: [echo hi]'
+  assert_line 'ready: [function foo {|  echo bar|}]'
+  assert_line 'ready: []'
+  assert_line 'unfinished: [function foo {]'
+  assert_line 'unfinished: [for x in 1 2]'
+  assert_line 'unfinished: [cat <<END]'
+  assert_line 'unfinished: [echo "open]'
+  assert_line 'unfinished: [echo hi \]'
+}
+
+# A command that cannot parse at all counts as unfinished, so Enter leaves you
+# room to fix it rather than running something that can only error.
+@test "a command that cannot parse counts as unfinished" {
+  z1_zsh <<'EOS'
+source $Z1
+for c in 'echo )' 'echo (bad'; do
+  command-is-complete "$c" && print "ready: [$c]" || print "unfinished: [$c]"
+done
+EOS
+  assert_success
+  assert_line 'unfinished: [echo )]'
+  assert_line 'unfinished: [echo (bad]'
+}
+
+# Hijacking Enter is not polite, so the key is opt-in. The widget
+# is always there to bind elsewhere, the way expand-alias works.
+@test "the accept-line-or-newline widget exists without the zstyle" {
+  z1_zsh 'source $Z1; print "widget: ${widgets[accept-line-or-newline]}"'
+  assert_success
+  assert_line "widget: user:accept-line-or-newline"
+}
+
+@test "Enter keeps its usual widget by default" {
+  z1_zsh 'source $Z1
+    print "emacs: $(bindkey -M emacs "^M")"
+    print "viins: $(bindkey -M viins "^M")"'
+  assert_success
+  assert_line 'emacs: "^M" accept-line'
+  assert_line 'viins: "^M" accept-line'
+}
+
+@test "the accept-line-or-newline zstyle binds Enter" {
+  z1_zsh 'zstyle ":z1:editor" accept-line-or-newline yes; source $Z1
+    print "emacs-cm: $(bindkey -M emacs "^M")"
+    print "emacs-cj: $(bindkey -M emacs "^J")"
+    print "viins-cm: $(bindkey -M viins "^M")"'
+  assert_success
+  assert_line 'emacs-cm: "^M" accept-line-or-newline'
+  assert_line 'emacs-cj: "^J" accept-line-or-newline'
+  assert_line 'viins-cm: "^M" accept-line-or-newline'
+}
+
+# Bound to Enter, an unfinished command grows in the same buffer: $PREBUFFER
+# stays empty, where zsh would otherwise drop to a PS2 prompt. The last Enter
+# closes the function, so it runs and leaves a fresh line.
+@test "Enter extends an unfinished command in one buffer" {
+  write_file "$TEST_HOME/aln.zsh" 'bindkey "^M" accept-line-or-newline'
+  Z1_ZLE_RC="$TEST_HOME/aln.zsh" z1_zle '
+    enter "function bar {"
+    enter "  echo hi"
+    enter "}"'
+  assert_success
+  assert_line "1: BUF=[function bar {|] CUR=15 PRE=[]"
+  assert_line "2: BUF=[function bar {|  echo hi|] CUR=25 PRE=[]"
+  assert_line "3: BUF=[] CUR=0 PRE=[]"
+}

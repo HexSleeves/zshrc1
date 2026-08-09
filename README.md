@@ -39,6 +39,7 @@ Feel free to use it as-is, build off it, or fork it and make it entirely your ow
 - Useful zle widgets like `prepend-sudo`, `pound-toggle`, `edit-command-line`, paste
   magic, and quote magic
 - Up and Down search history by substring, multi-line commands included
+- Optional Enter that extends an unfinished command instead of dropping to a PS2 prompt
 - Configure Zsh built-in completion system with cached `compinit` for fast startup
 - Use built-in Zsh prompt system, with prompts found in your own `prompts/` directory
 - Initialize Homebrew automatically when present
@@ -103,6 +104,7 @@ before it reads any style of its own, so that one file is enough. `.zshrc` befor
 | `:z1:compinit`               | `skip`             | off                                        | Leave `compinit` and `compdef` alone. No wrappers, no auto-run    |
 | `:z1:confd`                  | `directory`        | `$ZSH_CONFIG_DIR/conf.d`                   | Directory of config files to source at the end of your `.zshrc`   |
 | `:z1:confd`                  | `skip`             | off                                        | Never source `conf.d`. `run_confd` still works when called        |
+| `:z1:editor`                 | `accept-line-or-newline` | off                                  | Bind Enter to run finished commands and extend unfinished ones    |
 | `:z1:editor`                 | `expand-alias`     | off                                        | Bind space and enter to expand the alias you just typed           |
 | `:z1:editor`                 | `keymap`           | `emacs`                                    | Line editor keymap. Set it to `vi` for vi mode                    |
 | `:z1:editor`                 | `search-highlight` | `standout`                                 | Highlight on the matched part of a history search                 |
@@ -158,6 +160,22 @@ hook whose function has gone away is skipped, and `-d` takes one back off:
 function log-my-commands() { print -r -- "$BUFFER" >>~/.commands }
 add-accept-line-hook log-my-commands
 ```
+
+With `accept-line-or-newline` on, Enter runs a command that is finished and opens a new
+line in one that isn't, so a loop or a function is written and edited in a single buffer
+instead of at a PS2 prompt where the lines above are out of reach. A command too broken
+to parse counts as unfinished, so a stray bracket leaves you on the line to fix rather
+than running something that can only fail. Deciding costs no subshell: the line is
+compiled as a function body, which parses it without running any of it.
+
+```zsh
+# .zstyles
+zstyle ':z1:editor' accept-line-or-newline 'yes'
+```
+
+Hijacking Enter is not polite, so this one is opt-in. The `accept-line-or-newline`
+widget is defined either way, though it belongs on Enter specifically: it inserts the
+newline with `self-insert-unmeta`, so the keypress is the one zsh-autosuggestions sees.
 
 Up and Down do double duty. On the first line of what you are editing, Up searches
 history; on the last line, Down searches forward; anywhere else, they move between

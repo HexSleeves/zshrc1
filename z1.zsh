@@ -783,6 +783,53 @@ if (( ! $+functions[accept-line-with-hooks] )); then
   zle -N accept-line accept-line-with-hooks
 fi
 
+# True when $1 is a command ready to run. Compiling it as a function body is
+# the test, so there is no subshell and nothing runs. Options stay the caller's
+# here, or the answer would not be the one the prompt would give.
+function command-is-complete() {
+  setopt local_options no_err_return no_err_exit
+  local f=-z1-command-test
+
+  # An odd number of trailing backslashes continues the line.
+  (( ${#${1##*[^\\]}} % 2 )) && return 1
+
+  unfunction -- $f 2>/dev/null
+  functions[$f]="$1" 2>/dev/null || return 1
+  [[ -v functions[$f] ]]         || return 1
+  unfunction -- $f
+
+  # `for x` and `cat <<END` are legal function bodies but unfinished commands.
+  # If do/done finishes them, the command was waiting for more.
+  functions[$f]="$1"$'\ndo\ndone' 2>/dev/null || return 0
+  [[ -v functions[$f] ]]                      || return 0
+  unfunction -- $f
+  return 1
+}
+
+# Enter runs a finished command and opens a new line in an unfinished one, so a
+# multi-line command is edited in one buffer rather than at a PS2 prompt. A
+# command too broken to parse counts as unfinished, leaving room to fix it.
+function accept-line-or-newline() {
+  if command-is-complete "$PREBUFFER$BUFFER"; then
+    zle accept-line
+  else
+    # self-insert-unmeta rather than a newline of our own, so zsh-autosuggestions
+    # sees the keypress. It is also why this belongs on Enter and nowhere else.
+    zle self-insert-unmeta
+  fi
+}
+zle -N accept-line-or-newline
+
+# Hijacking Enter is not polite, so this feature is opt-in:
+#   zstyle ':z1:editor' accept-line-or-newline 'yes'
+if zstyle -t ':z1:editor' accept-line-or-newline; then
+  for _z1_keymap in emacs viins; do
+    bindkey -M $_z1_keymap '^M' accept-line-or-newline
+    bindkey -M $_z1_keymap '^J' accept-line-or-newline
+  done
+  unset _z1_keymap
+fi
+
 # Up and Down history search: substring search from the first and last lines,
 # move between lines anywhere else, keep searching once started.
 typeset -g _z1_search_query=
