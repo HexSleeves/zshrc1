@@ -707,6 +707,14 @@ function pound-toggle() {
 }
 zle -N pound-toggle
 
+# Copy the line being edited to the clipboard, PS2 continuation lines included.
+function copybuffer() {
+  (( $+commands[pbcopy] || $+aliases[pbcopy] || $+functions[pbcopy] )) ||
+    { zle -M "copybuffer: pbcopy not found"; return 1 }
+  print -rn -- "$PREBUFFER$BUFFER" | pbcopy
+}
+zle -N copybuffer
+
 # Ctrl+Z suspends a job, so let it resume one too. Whatever you had typed is
 # stashed, and comes back the next time the job stops.
 function fg-job() {
@@ -958,6 +966,12 @@ bindkey '^X^E' edit-command-line
 # Complete from history.
 bindkey '^X^X' hist-complete
 
+# Copy the line to the clipboard. Ctrl+X Ctrl+C is unbound by default, unlike
+# the Ctrl+O other configs use for this, which is accept-line-and-down-history.
+bindkey -M emacs '^X^C' copybuffer
+bindkey -M viins '^X^C' copybuffer
+bindkey -M vicmd '^X^C' copybuffer
+
 # Toggle comment at start of line. Alt-; in emacs, # in vi cmd mode.
 bindkey -M emacs '^[;' pound-toggle
 bindkey -M vicmd '#' vi-pound-insert
@@ -1076,6 +1090,20 @@ fi
 if (( ! $+commands[hd] )) && (( $+commands[hexdump] )); then
   alias hd='hexdump -C'
 fi
+
+# Copy a file's contents to the clipboard.
+function copyfile() {
+  emulate -L zsh
+  [[ -f "$1" ]] || { print -ru2 -- "copyfile: not a file: ${1:-}"; return 1 }
+  pbcopy < "$1"
+}
+
+# Copy a path to the clipboard, made absolute. Defaults to $PWD.
+function copypath() {
+  emulate -L zsh
+  local file=${1:-$PWD}
+  print -rn -- "${file:a}" | pbcopy
+}
 
 # Lazy-load my functions. Handle your own fpath and autoloads with:
 #   zstyle ':z1:zfunctions' skip 'yes'

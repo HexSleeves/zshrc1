@@ -39,6 +39,8 @@ Feel free to use it as-is, build off it, or fork it and make it entirely your ow
 - Useful zle widgets like `prepend-sudo`, `pound-toggle`, `edit-command-line`, paste
   magic, and quote magic
 - Up and Down search history by substring, multi-line commands included
+- Clipboard helpers: `copyfile`, `copypath`, and Ctrl+X Ctrl+C to copy the line you are
+  editing, with `pbcopy` and `pbpaste` filled in on systems that lack them
 - Optional Enter that extends an unfinished command instead of dropping to a PS2 prompt
 - Configure Zsh built-in completion system with cached `compinit` for fast startup
 - Use built-in Zsh prompt system, with prompts found in your own `prompts/` directory
