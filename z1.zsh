@@ -897,11 +897,20 @@ function history-search-highlight() {
   region_highlight+=("$#prefix $(($#prefix + $#_z1_search_query)) $style memo=z1-history-search")
 }
 function history-search-highlight-last() {
+  # Ensure our hooks are still there once everything has loaded.
   add-zle-hook-widget -d line-pre-redraw history-search-highlight
   add-zle-hook-widget line-pre-redraw history-search-highlight
+  add-zle-hook-widget -d line-finish history-search-highlight-finish
+  add-zle-hook-widget line-finish history-search-highlight-finish
+}
+# A finished line gets one last redraw and then stays on the screen, so the
+# match has to come off it first, or the command you ran keeps the highlight.
+function history-search-highlight-finish() {
+  region_highlight=(${region_highlight:#*memo=z1-history-search})
 }
 if is-at-least 5.9; then
   add-zle-hook-widget line-pre-redraw history-search-highlight
+  add-zle-hook-widget line-finish history-search-highlight-finish
   add-post-zshrc-hook history-search-highlight-last
 fi
 
