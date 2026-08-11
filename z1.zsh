@@ -727,6 +727,21 @@ function fg-job() {
 }
 zle -N fg-job
 
+# Home and End go to the ends of the line, then to the ends of the buffer.
+# Both widgets share this function, which reads $WIDGET for the end wanted.
+function goto-line-or-buffer-edge() {
+  local -i hno=$HISTNO
+  if [[ ( $LBUFFER[-1] == $'\n' && $WIDGET == beginning-of* ) ||
+        ( $RBUFFER[1] == $'\n' && $WIDGET == end-of* ) ]]; then
+    zle .${WIDGET:s/line-or-buffer/buffer-or-history/} -- "$@"
+  else
+    zle .${WIDGET:s/line-or-buffer/line-hist/} -- "$@"
+    (( HISTNO != hno )) && zle .${WIDGET:s/line-or-buffer/buffer-or-history/} -- "$@"
+  fi
+}
+zle -N beginning-of-line-or-buffer goto-line-or-buffer-edge
+zle -N end-of-line-or-buffer goto-line-or-buffer-edge
+
 # Edit current command in $EDITOR.
 autoload -Uz edit-command-line
 zle -N edit-command-line
@@ -881,8 +896,8 @@ function default-command() {
 # Common terminal key fixes: terminfo first, xterm fallbacks second. Arrows
 # take both fallbacks, since terminfo names only the one its terminal sends and
 # a stray SS3 arrow would otherwise miss the search widgets.
-bindkey-multiple beginning-of-line                 "${terminfo[khome]-}" '^[[H'
-bindkey-multiple end-of-line                       "${terminfo[kend]-}"  '^[[F'
+bindkey-multiple beginning-of-line-or-buffer       "${terminfo[khome]-}" '^[[H'
+bindkey-multiple end-of-line-or-buffer             "${terminfo[kend]-}"  '^[[F'
 bindkey-multiple delete-char                       "${terminfo[kdch1]-}" '^[[3~'
 bindkey-multiple up-line-or-history-search         "${terminfo[kcuu1]-}" '^[[A' '^[OA'
 bindkey-multiple down-line-or-history-search       "${terminfo[kcud1]-}" '^[[B' '^[OB'
