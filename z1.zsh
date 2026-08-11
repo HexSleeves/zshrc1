@@ -33,11 +33,12 @@ fi
 [[ -d $ZSH_CONFIG_DIR && -d $ZSH_DATA_DIR && -d $ZSH_CACHE_DIR ]] \
 || mkdir -p $ZSH_CONFIG_DIR $ZSH_DATA_DIR $ZSH_CACHE_DIR
 
+#
+# Caching
+#
+
 # Source a command's Zsh output, caching it in $ZSH_CACHE_DIR for 20 hours. Only
 # for commands with stable output.
-#   cached-eval brew shellenv
-#   cached-eval --clear brew shellenv  # clear one
-#   cached-eval --clear                # clear all
 function cached-eval() {
   local sourcefile=''
 
@@ -739,6 +740,10 @@ zle -N bracketed-paste bracketed-paste-url-magic
 autoload -Uz url-quote-magic
 zle -N self-insert url-quote-magic
 
+#
+# Accept line
+#
+
 # Functions to run when Enter accepts a line, in the order added. They run
 # inside a widget, so BUFFER, CURSOR, and zle all work normally.
 typeset -ga accept_line_hook
@@ -838,6 +843,129 @@ if zstyle -t ':z1:editor' accept-line-or-newline; then
   unset _z1_keymap
 fi
 
+#
+# Default command
+#
+
+# Run a command when you press Enter on an empty line. Nothing is set by
+# default. The repo commands only apply inside a checkout and beat the plain
+# one, jj first so a colocated repo gets the jj command.
+function default-command() {
+  # $CONTEXT is 'start' only at the main prompt, not in vared or a continuation.
+  [[ -z $BUFFER && $CONTEXT == start ]] || return
+
+  # Read the styles first: they are cheap, and nothing set means nothing to do.
+  local ctx=':z1:editor:default-command' jj git dflt
+  zstyle -s $ctx jj-command jj
+  zstyle -s $ctx git-command git
+  zstyle -s $ctx command dflt
+  [[ -n $jj$git$dflt ]] || return
+
+  if [[ -n $jj ]] && command jj st &>/dev/null; then
+    BUFFER=$jj
+  elif [[ -n $git ]] && command git rev-parse --is-inside-work-tree &>/dev/null; then
+    BUFFER=$git
+  else
+    BUFFER=$dflt
+  fi
+
+  # A leading space keeps it out of history, given hist_ignore_space.
+  [[ -n $BUFFER ]] && BUFFER=" $BUFFER"
+  CURSOR=$#BUFFER
+}
+
+#
+# Keybindings
+#
+
+# Common terminal key fixes: terminfo first, xterm fallbacks second. Arrows
+# take both fallbacks, since terminfo names only the one its terminal sends and
+# a stray SS3 arrow would otherwise miss the search widgets.
+bindkey-multiple beginning-of-line                 "${terminfo[khome]-}" '^[[H'
+bindkey-multiple end-of-line                       "${terminfo[kend]-}"  '^[[F'
+bindkey-multiple delete-char                       "${terminfo[kdch1]-}" '^[[3~'
+bindkey-multiple up-line-or-history-search         "${terminfo[kcuu1]-}" '^[[A' '^[OA'
+bindkey-multiple down-line-or-history-search       "${terminfo[kcud1]-}" '^[[B' '^[OB'
+bindkey-multiple backward-word                     '^[[1;3D' '^[[1;5D'   # Alt/Ctrl + Left
+bindkey-multiple forward-word                      '^[[1;3C' '^[[1;5C'   # Alt/Ctrl + Right
+
+# Vi keybindings.
+bindkey-multiple -M vicmd up-line-or-history-search   "${terminfo[kcuu1]-}" '^[[A' '^[OA'
+bindkey-multiple -M vicmd down-line-or-history-search "${terminfo[kcud1]-}" '^[[B' '^[OB'
+
+# Backspace and word deletion.
+bindkey '^?' backward-delete-char
+bindkey '^W' backward-kill-word
+
+# Edit command in $EDITOR.
+bindkey '^X^E' edit-command-line
+
+# Complete from history.
+bindkey '^X^X' hist-complete
+
+# Copy the line to the clipboard. Ctrl+X Ctrl+C is unbound by default, unlike
+# the Ctrl+O other configs use for this, which is accept-line-and-down-history.
+bindkey -M emacs '^X^C' copybuffer
+bindkey -M viins '^X^C' copybuffer
+bindkey -M vicmd '^X^C' copybuffer
+
+# Toggle comment at start of line. Alt-; in emacs, # in vi cmd mode.
+bindkey -M emacs '^[;' pound-toggle
+bindkey -M vicmd '#' vi-pound-insert
+
+# Prepend sudo with Alt-s.
+bindkey -M emacs '^[s' prepend-sudo
+bindkey -M viins '^[s' prepend-sudo
+
+# Resume a job with Ctrl+Z. Unbound in emacs, and only inserts a literal ^Z in
+# viins, so nothing useful is lost. vicmd keeps its own meaning.
+bindkey -M emacs '^Z' fg-job
+bindkey -M viins '^Z' fg-job
+
+#
+# Expand alias
+#
+
+# Expand the alias under the cursor. Global aliases always expand, plain ones
+# only when not also a command name, so ls='ls --color' is left alone. The
+# exclude and include lists override that both ways, exclude first.
+function expand-alias-word() {
+  # (Az) splits LBUFFER with shell parsing, always as an array.
+  local word=${${(Az)LBUFFER}[-1]}
+  local -a never always
+  zstyle -a ':z1:editor:expand-alias' exclude never
+  (( $never[(Ie)$word] )) && return
+  zstyle -a ':z1:editor:expand-alias' include always
+  (( $always[(Ie)$word] || $+galiases[$word] || ! $+commands[$word] )) \
+    && zle _expand_alias
+}
+
+function expand-alias-space() {
+  expand-alias-word
+  zle self-insert
+}
+zle -N expand-alias-space
+
+# Expanding as you type is not for everyone, so the keys are opt-in. Alt-Space
+# still lets you insert a space without expanding.
+#   zstyle ':z1:editor' expand-alias 'yes'
+#   zstyle ':z1:editor:expand-alias' exclude 'ls' 'rm'
+#   zstyle ':z1:editor:expand-alias' include 'vim' 'cat'
+if zstyle -t ':z1:editor' expand-alias; then
+  for _z1_keymap in emacs viins; do
+    bindkey -M $_z1_keymap ' '   expand-alias-space
+    bindkey -M $_z1_keymap '^[ ' magic-space
+  done
+  bindkey -M isearch ' ' magic-space
+  unset _z1_keymap
+  add-accept-line-hook expand-alias-word
+fi
+
+
+#
+# History search
+#
+
 # Up and Down history search: substring search from the first and last lines,
 # move between lines anywhere else, keep searching once started.
 typeset -g _z1_search_query=
@@ -888,6 +1016,7 @@ function history-search-step() {
 # a character wins and highlighters append theirs on every redraw, so
 # re-register at post_zshrc to run after any highlighter loaded later.
 autoload -Uz is-at-least add-zle-hook-widget
+
 function history-search-highlight() {
   region_highlight=(${region_highlight:#*memo=z1-history-search})
   history-search-in-progress && [[ -n $_z1_search_query ]] || return 0
@@ -896,6 +1025,7 @@ function history-search-highlight() {
   zstyle -s ':z1:editor' search-highlight style || style=standout
   region_highlight+=("$#prefix $(($#prefix + $#_z1_search_query)) $style memo=z1-history-search")
 }
+
 function history-search-highlight-last() {
   # Ensure our hooks are still there once everything has loaded.
   add-zle-hook-widget -d line-pre-redraw history-search-highlight
@@ -903,11 +1033,13 @@ function history-search-highlight-last() {
   add-zle-hook-widget -d line-finish history-search-highlight-finish
   add-zle-hook-widget line-finish history-search-highlight-finish
 }
+
 # A finished line gets one last redraw and then stays on the screen, so the
 # match has to come off it first, or the command you ran keeps the highlight.
 function history-search-highlight-finish() {
   region_highlight=(${region_highlight:#*memo=z1-history-search})
 }
+
 if is-at-least 5.9; then
   add-zle-hook-widget line-pre-redraw history-search-highlight
   add-zle-hook-widget line-finish history-search-highlight-finish
@@ -949,112 +1081,6 @@ function down-line-or-history-search() {
   fi
 }
 zle -N down-line-or-history-search
-
-# Common terminal key fixes: terminfo first, xterm fallbacks second. Arrows
-# take both fallbacks, since terminfo names only the one its terminal sends and
-# a stray SS3 arrow would otherwise miss the search widgets.
-bindkey-multiple beginning-of-line                 "${terminfo[khome]-}" '^[[H'
-bindkey-multiple end-of-line                       "${terminfo[kend]-}"  '^[[F'
-bindkey-multiple delete-char                       "${terminfo[kdch1]-}" '^[[3~'
-bindkey-multiple up-line-or-history-search         "${terminfo[kcuu1]-}" '^[[A' '^[OA'
-bindkey-multiple down-line-or-history-search       "${terminfo[kcud1]-}" '^[[B' '^[OB'
-bindkey-multiple backward-word                     '^[[1;3D' '^[[1;5D'   # Alt/Ctrl + Left
-bindkey-multiple forward-word                      '^[[1;3C' '^[[1;5C'   # Alt/Ctrl + Right
-
-# Vi keybindings.
-bindkey-multiple -M vicmd up-line-or-history-search   "${terminfo[kcuu1]-}" '^[[A' '^[OA'
-bindkey-multiple -M vicmd down-line-or-history-search "${terminfo[kcud1]-}" '^[[B' '^[OB'
-
-# Backspace and word deletion.
-bindkey '^?' backward-delete-char
-bindkey '^W' backward-kill-word
-
-# Edit command in $EDITOR.
-bindkey '^X^E' edit-command-line
-
-# Complete from history.
-bindkey '^X^X' hist-complete
-
-# Copy the line to the clipboard. Ctrl+X Ctrl+C is unbound by default, unlike
-# the Ctrl+O other configs use for this, which is accept-line-and-down-history.
-bindkey -M emacs '^X^C' copybuffer
-bindkey -M viins '^X^C' copybuffer
-bindkey -M vicmd '^X^C' copybuffer
-
-# Toggle comment at start of line. Alt-; in emacs, # in vi cmd mode.
-bindkey -M emacs '^[;' pound-toggle
-bindkey -M vicmd '#' vi-pound-insert
-
-# Prepend sudo with Alt-s.
-bindkey -M emacs '^[s' prepend-sudo
-bindkey -M viins '^[s' prepend-sudo
-
-# Resume a job with Ctrl+Z. Unbound in emacs, and only inserts a literal ^Z in
-# viins, so nothing useful is lost. vicmd keeps its own meaning.
-bindkey -M emacs '^Z' fg-job
-bindkey -M viins '^Z' fg-job
-
-# Expand the alias under the cursor. Global aliases always expand, plain ones
-# only when not also a command name, so ls='ls --color' is left alone. The
-# exclude and include lists override that both ways, exclude first.
-function expand-alias-word() {
-  # (Az) splits LBUFFER with shell parsing, always as an array.
-  local word=${${(Az)LBUFFER}[-1]}
-  local -a never always
-  zstyle -a ':z1:editor:expand-alias' exclude never
-  (( $never[(Ie)$word] )) && return
-  zstyle -a ':z1:editor:expand-alias' include always
-  (( $always[(Ie)$word] || $+galiases[$word] || ! $+commands[$word] )) \
-    && zle _expand_alias
-}
-
-function expand-alias-space() {
-  expand-alias-word
-  zle self-insert
-}
-zle -N expand-alias-space
-
-# Expanding as you type is not for everyone, so the keys are opt-in. Alt-Space
-# still lets you insert a space without expanding.
-#   zstyle ':z1:editor' expand-alias 'yes'
-#   zstyle ':z1:editor:expand-alias' exclude 'ls' 'rm'
-#   zstyle ':z1:editor:expand-alias' include 'vim' 'cat'
-if zstyle -t ':z1:editor' expand-alias; then
-  for _z1_keymap in emacs viins; do
-    bindkey -M $_z1_keymap ' '   expand-alias-space
-    bindkey -M $_z1_keymap '^[ ' magic-space
-  done
-  bindkey -M isearch ' ' magic-space
-  unset _z1_keymap
-  add-accept-line-hook expand-alias-word
-fi
-
-# Run a command when you press Enter on an empty line. Nothing is set by
-# default. The repo commands only apply inside a checkout and beat the plain
-# one, jj first so a colocated repo gets the jj command.
-function default-command() {
-  # $CONTEXT is 'start' only at the main prompt, not in vared or a continuation.
-  [[ -z $BUFFER && $CONTEXT == start ]] || return
-
-  # Read the styles first: they are cheap, and nothing set means nothing to do.
-  local ctx=':z1:editor:default-command' jj git dflt
-  zstyle -s $ctx jj-command jj
-  zstyle -s $ctx git-command git
-  zstyle -s $ctx command dflt
-  [[ -n $jj$git$dflt ]] || return
-
-  if [[ -n $jj ]] && command jj st &>/dev/null; then
-    BUFFER=$jj
-  elif [[ -n $git ]] && command git rev-parse --is-inside-work-tree &>/dev/null; then
-    BUFFER=$git
-  else
-    BUFFER=$dflt
-  fi
-
-  # A leading space keeps it out of history, given hist_ignore_space.
-  [[ -n $BUFFER ]] && BUFFER=" $BUFFER"
-  CURSOR=$#BUFFER
-}
 
 #
 # Utility
@@ -1153,6 +1179,10 @@ function run_confd() {
     [[ "${rc:t}" == '~'* ]] || source "$rc"
   done
 }
+
+#
+# Post zshrc
+#
 
 # Register functions to run at the end of .zshrc. Each function here runs in order,
 # and should unregister itself from the post_zshrc_hook if it runs early.
