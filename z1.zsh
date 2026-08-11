@@ -1165,6 +1165,34 @@ function copypath() {
   print -rn -- "${file:a}" | pbcopy
 }
 
+# Make a directory and cd into it, parents included.
+function mkcd() {
+  emulate -L zsh
+  [[ -n "${1:-}" ]] || { print -ru2 -- "mkcd: expecting a directory argument"; return 1 }
+  mkdir -p -- "$1" && builtin cd -- "$1"
+}
+
+# Make a temp directory and cd into it. An argument prefixes the name. The
+# template is spelled out because GNU and BSD mktemp disagree about -t.
+function mktmpcd() {
+  emulate -L zsh
+  local dir tmp=${${TMPDIR:-/tmp}%/}
+  dir=$(mktemp -d "$tmp/${1:-tmp}.XXXXXXXX") || return 1
+  builtin cd -- "$dir" && print -r -- "$PWD"
+}
+
+# Reload an autoloaded function, picking up edits to its file.
+function funcfresh() {
+  emulate -L zsh
+  local fn
+  (( $# )) || { print -ru2 -- "funcfresh: expecting a function argument"; return 1 }
+  for fn in "$@"; do
+    (( $+functions[$fn] )) || { print -ru2 -- "funcfresh: function not found '$fn'"; return 1 }
+    unfunction -- "$fn"
+    autoload -Uz -- "$fn"
+  done
+}
+
 # Lazy-load my functions. Handle your own fpath and autoloads with:
 #   zstyle ':z1:zfunctions' skip 'yes'
 if ! zstyle -t ':z1:zfunctions' skip; then
