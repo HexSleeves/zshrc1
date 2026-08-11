@@ -1083,6 +1083,16 @@ function down-line-or-history-search() {
 zle -N down-line-or-history-search
 
 #
+# Autosuggest
+#
+
+# Finish the line you are typing from what you typed before. Leave it out with:
+#   zstyle ':z1:autosuggest' skip 'yes'
+if ! zstyle -t ':z1:autosuggest' skip && [[ -e ${0:A:h}/lib/autosuggest.zsh ]]; then
+  source ${0:A:h}/lib/autosuggest.zsh
+fi
+
+#
 # Utility
 #
 
