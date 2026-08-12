@@ -226,6 +226,59 @@ EOS
   refute_line "cache hit"
 }
 
+# FPATH is exported, so a nested shell starts with the parent's fpath and z1
+# appends to it. Directories that no longer exist and entries that arrive twice
+# say nothing about what the dumpfile holds, so the stamp ignores both.
+@test "a missing fpath directory does not defeat the cache" {
+  z1_zsh 'zstyle ":z1:compinit" cache yes
+    source $Z1; ZSH_COMPDUMP=$HOME/dump; compinit'
+  assert_success
+
+  printf 'print "cache hit"\n' >>"$TEST_HOME/dump"
+  rm -f "$TEST_HOME/dump.zwc"
+
+  z1_zsh 'zstyle ":z1:compinit" cache yes
+    source $Z1; ZSH_COMPDUMP=$HOME/dump
+    fpath=($HOME/gone $fpath)
+    compinit'
+  assert_success
+  assert_line "cache hit"
+}
+
+@test "a duplicated fpath entry does not defeat the cache" {
+  z1_zsh 'zstyle ":z1:compinit" cache yes
+    source $Z1; ZSH_COMPDUMP=$HOME/dump; compinit'
+  assert_success
+
+  printf 'print "cache hit"\n' >>"$TEST_HOME/dump"
+  rm -f "$TEST_HOME/dump.zwc"
+
+  z1_zsh 'zstyle ":z1:compinit" cache yes
+    source $Z1; ZSH_COMPDUMP=$HOME/dump
+    fpath=($fpath $fpath)
+    compinit'
+  assert_success
+  assert_line "cache hit"
+}
+
+# Order decides which directory wins when two ship the same completion, so a
+# reordered fpath is a real change and has to rebuild.
+@test "a reordered fpath rebuilds the dumpfile" {
+  z1_zsh 'zstyle ":z1:compinit" cache yes
+    source $Z1; ZSH_COMPDUMP=$HOME/dump; compinit'
+  assert_success
+
+  printf 'print "cache hit"\n' >>"$TEST_HOME/dump"
+  rm -f "$TEST_HOME/dump.zwc"
+
+  z1_zsh 'zstyle ":z1:compinit" cache yes
+    source $Z1; ZSH_COMPDUMP=$HOME/dump
+    fpath=(${(Oa)fpath})
+    compinit'
+  assert_success
+  refute_line "cache hit"
+}
+
 @test "a completion added to fpath shows up despite a fresh cache" {
   write_file "$TEST_HOME/zextra/_mytool" '#compdef mytool' '_message x'
 

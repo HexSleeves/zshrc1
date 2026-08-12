@@ -468,7 +468,10 @@ if ! zstyle -t ':z1:compinit' skip; then
       # Snapshot fpath first: compinit -i drops insecure directories from it, so
       # stamping afterwards would record something the next startup never matches,
       # and the cache would rebuild every time.
-      local stampfile=$ZSH_COMPDUMP.fpath stamped= wanted="$fpath"
+      # Drop dirs that no longer exist, or an inherited FPATH full of stale
+      # entries never matches the stamp and rebuilds every time.
+      local -aU live=(${^fpath}(N-/))
+      local stampfile=$ZSH_COMPDUMP.fpath stamped= wanted="$live"
       [[ -r $stampfile ]] && stamped="$(<$stampfile)"
       if [[ "$wanted" != "$stamped" ]]; then
         command rm -f "$ZSH_COMPDUMP" "$ZSH_COMPDUMP.zwc"
