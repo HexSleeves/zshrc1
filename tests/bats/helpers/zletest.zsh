@@ -35,11 +35,17 @@ function zle-probe-hl() {
   print -r -- "$((++ZLEN)): RH=[${(j:,:)region_highlight}]" >>$ZLELOG
 }
 zle -N zle-probe-hl
+function zle-probe-pwd() {
+  print -r -- "$((++ZLEN)): PWD=${PWD:t}" >>$ZLELOG
+}
+zle -N zle-probe-pwd
 # vicmd as well, so a scenario can probe from vi command mode.
 bindkey '^G' zle-probe
 bindkey '^O' zle-probe-hl
+bindkey '^B' zle-probe-pwd
 bindkey -M vicmd '^G' zle-probe
 bindkey -M vicmd '^O' zle-probe-hl
+bindkey -M vicmd '^B' zle-probe-pwd
 print ready >>$ZLELOG
 RC
 
@@ -70,6 +76,14 @@ function probe() {
 # Log the highlight regions instead of the buffer.
 function probe-hl() {
   zpty -w -n z $'\x0f'
+  (( expect += 1 ))
+  await
+}
+
+# Log the working directory instead of the buffer. A scenario that echoed it
+# into the log itself would put lines there that await does not count.
+function probe-pwd() {
+  zpty -w -n z $'\x02'
   (( expect += 1 ))
   await
 }

@@ -106,12 +106,12 @@ teardown() { z1_teardown; }
     enter "cd \$HOME/a"
     enter "cd \$HOME/a/b"
     press $'"'"'\e[1;3D'"'"'
-    enter "print -r -- back=\${PWD:t} >>\$ZLELOG"
+    probe-pwd
     press $'"'"'\e[1;3C'"'"'
-    enter "print -r -- fwd=\${PWD:t} >>\$ZLELOG"'
+    probe-pwd'
   assert_success
-  assert_line "back=a"
-  assert_line "fwd=b"
+  assert_line "5: PWD=a"
+  assert_line "7: PWD=b"
 }
 
 @test "Alt-Left moves by word on a line with text" {
