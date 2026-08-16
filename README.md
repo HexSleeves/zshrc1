@@ -39,6 +39,7 @@ Feel free to use it as-is, build off it, or fork it and make it entirely your ow
 - Useful zle widgets like `prepend-sudo`, `pound-toggle`, `edit-command-line`, paste
   magic, and quote magic
 - Up and Down search history by substring, multi-line commands included
+- Fish-style directory history: `prevd` and `nextd`, on Alt-Left and Alt-Right
 - Clipboard helpers: `copyfile`, `copypath`, and Ctrl+X Ctrl+C to copy the line you are
   editing, with `pbcopy` and `pbpaste` filled in on systems that lack them
 - Optional Enter that extends an unfinished command instead of dropping to a PS2 prompt
@@ -106,6 +107,7 @@ before it reads any style of its own, so that one file is enough. `.zshrc` befor
 | `:z1:compinit`               | `skip`             | off                                        | Leave `compinit` and `compdef` alone. No wrappers, no auto-run    |
 | `:z1:confd`                  | `directory`        | `$ZSH_CONFIG_DIR/conf.d`                   | Directory of config files to source at the end of your `.zshrc`   |
 | `:z1:confd`                  | `skip`             | off                                        | Never source `conf.d`. `run_confd` still works when called        |
+| `:z1:dirhistory`             | `skip`             | off                                        | No directory history, and Alt-arrows stay on word movement        |
 | `:z1:editor`                 | `accept-line-or-newline` | off                                  | Bind Enter to run finished commands and extend unfinished ones    |
 | `:z1:editor`                 | `expand-alias`     | off                                        | Bind space and enter to expand the alias you just typed           |
 | `:z1:editor`                 | `keymap`           | `emacs`                                    | Line editor keymap. Set it to `vi` for vi mode                    |
@@ -193,6 +195,12 @@ The highlight style is `standout` unless a zstyle says otherwise, and needs zsh 
 ```zsh
 zstyle ':z1:editor' search-highlight 'fg=white,bg=magenta,bold'
 ```
+
+Alt-Left and Alt-Right walk the directories you have been in, as Fish does. `prevd` and
+`nextd` do the same from the command line, and both take a count. `auto_pushd` is what
+records them, so the history is the dirstack `dirh` prints, and walking off either end
+comes back around rather than stopping. On a line with text the same keys move by word
+instead, and Ctrl-Left and Ctrl-Right always do.
 
 ```zsh
 # .zstyles

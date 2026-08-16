@@ -302,6 +302,36 @@ setopt pushd_to_home           # Push to home directory when no argument is give
 alias -- -='cd -'
 alias dirh='dirs -v'
 
+# Fish-style directory history, rotating the dirstack auto_pushd fills. The
+# signs read backwards because pushd_minus swapped them.
+#   zstyle ':z1:dirhistory' skip 'yes'
+if ! zstyle -t ':z1:dirhistory' skip; then
+  function prevd() { pushd -q -${1:-1} }
+  function nextd() { pushd -q +$(( ${1:-1} - 1 )) }
+
+  # A cd inside a widget leaves the prompt showing the directory you left.
+  function z1-redraw-prompt() {
+    local fn
+    for fn in $precmd_functions; do
+      (( $+functions[$fn] )) && $fn
+    done
+    zle .reset-prompt
+  }
+
+  # Empty line walks the history, a line with text moves by word.
+  function prevd-or-backward-word() {
+    [[ -n $BUFFER ]] && { zle .backward-word; return }
+    prevd 2>/dev/null && z1-redraw-prompt
+  }
+  zle -N prevd-or-backward-word
+
+  function nextd-or-forward-word() {
+    [[ -n $BUFFER ]] && { zle .forward-word; return }
+    nextd 2>/dev/null && z1-redraw-prompt
+  }
+  zle -N nextd-or-forward-word
+fi
+
 #
 # Compstyles
 #
@@ -904,8 +934,17 @@ bindkey-multiple end-of-line-or-buffer             "${terminfo[kend]-}"  '^[[F'
 bindkey-multiple delete-char                       "${terminfo[kdch1]-}" '^[[3~'
 bindkey-multiple up-line-or-history-search         "${terminfo[kcuu1]-}" '^[[A' '^[OA'
 bindkey-multiple down-line-or-history-search       "${terminfo[kcud1]-}" '^[[B' '^[OB'
-bindkey-multiple backward-word                     '^[[1;3D' '^[[1;5D'   # Alt/Ctrl + Left
-bindkey-multiple forward-word                      '^[[1;3C' '^[[1;5C'   # Alt/Ctrl + Right
+bindkey-multiple backward-word                     '^[[1;5D'             # Ctrl + Left
+bindkey-multiple forward-word                      '^[[1;5C'             # Ctrl + Right
+
+# Terminals disagree on what Alt + arrow sends, so bind all three spellings.
+if (( $+widgets[prevd-or-backward-word] )); then
+  bindkey-multiple prevd-or-backward-word '^[[1;3D' '^[[1;9D' '^[^[[D'
+  bindkey-multiple nextd-or-forward-word  '^[[1;3C' '^[[1;9C' '^[^[[C'
+else
+  bindkey-multiple backward-word          '^[[1;3D' '^[[1;9D' '^[^[[D'
+  bindkey-multiple forward-word           '^[[1;3C' '^[[1;9C' '^[^[[C'
+fi
 
 # Vi keybindings.
 bindkey-multiple -M vicmd up-line-or-history-search   "${terminfo[kcuu1]-}" '^[[A' '^[OA'
