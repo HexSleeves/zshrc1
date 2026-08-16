@@ -110,9 +110,12 @@ function prompt_z1_setup {
   (( $+functions[add-accept-line-hook] )) && add-accept-line-hook prompt_z1_accept_line
 
   # vcs_info costs tens of ms per prompt, so run it off the critical path when
-  # lib/async.zsh is around. %x is this file even when autoloaded.
-  local _z1_lib=${${(%):-%x}:A:h:h}/lib/async.zsh
-  [[ -r $_z1_lib ]] && source $_z1_lib
+  # z1_async.zsh is around. %x is this file even when autoloaded.
+  local -a _z1_libs=(
+    $ZSH_CONFIG_DIR/lib/z1_async.zsh(N)
+    ${${(%):-%x}:A:h:h}/lib/z1_async.zsh(N)
+  )
+  (( $#_z1_libs )) && source $_z1_libs[1]
 
   # Define default prompt colors.
   typeset -gA _prompt_z1_colors=(

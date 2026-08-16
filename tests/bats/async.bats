@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# lib/async.zsh runs tasks off the prompt's critical path. zle -F cannot fire
+# lib/z1_async.zsh runs tasks off the prompt's critical path. zle -F cannot fire
 # outside an interactive session, so these drive the cycle with async-wait,
 # which collects the same way the zle handler would.
 
@@ -9,7 +9,7 @@ setup() { z1_setup; }
 teardown() { z1_teardown; }
 
 @test "a task's output lands in async_output" {
-  z1_zsh 'source ${Z1:h}/lib/async.zsh
+  z1_zsh 'source ${Z1:h}/lib/z1_async.zsh
     function slow { print -n "the-answer" }
     async-task job slow
     print "before: [${async_output[job]}]"
@@ -21,7 +21,7 @@ teardown() { z1_teardown; }
 }
 
 @test "the task really runs in the background" {
-  z1_zsh 'source ${Z1:h}/lib/async.zsh
+  z1_zsh 'source ${Z1:h}/lib/z1_async.zsh
     function slow { sleep 2; print -n late }
     async-task job slow
     typeset -F SECONDS=0
@@ -34,7 +34,7 @@ teardown() { z1_teardown; }
 }
 
 @test "several tasks run at once" {
-  z1_zsh 'source ${Z1:h}/lib/async.zsh
+  z1_zsh 'source ${Z1:h}/lib/z1_async.zsh
     function one { print -n first }
     function two { print -n second }
     async-task a one
@@ -48,7 +48,7 @@ teardown() { z1_teardown; }
 }
 
 @test "descriptors are released after collection" {
-  z1_zsh 'source ${Z1:h}/lib/async.zsh
+  z1_zsh 'source ${Z1:h}/lib/z1_async.zsh
     function slow { print -n x }
     async-task job slow
     async-run
@@ -63,7 +63,7 @@ teardown() { z1_teardown; }
 # A task still going when the next prompt arrives is killed, so a slow repo
 # cannot pile up jobs.
 @test "a pending task is cancelled by the next run" {
-  z1_zsh 'source ${Z1:h}/lib/async.zsh
+  z1_zsh 'source ${Z1:h}/lib/z1_async.zsh
     function slow { sleep 5; print -n never }
     async-task job slow
     async-run
@@ -76,7 +76,7 @@ teardown() { z1_teardown; }
 }
 
 @test "a task that prints nothing leaves an empty result" {
-  z1_zsh 'source ${Z1:h}/lib/async.zsh
+  z1_zsh 'source ${Z1:h}/lib/z1_async.zsh
     function quiet { : }
     async-task job quiet
     async-run; async-wait
@@ -88,7 +88,7 @@ teardown() { z1_teardown; }
 }
 
 @test "multi-line output survives intact" {
-  z1_zsh 'source ${Z1:h}/lib/async.zsh
+  z1_zsh 'source ${Z1:h}/lib/z1_async.zsh
     function multi { print "one"; print "two" }
     async-task job multi
     async-run; async-wait
@@ -99,7 +99,7 @@ teardown() { z1_teardown; }
 }
 
 @test "untasking stops the task and drops its output" {
-  z1_zsh 'source ${Z1:h}/lib/async.zsh
+  z1_zsh 'source ${Z1:h}/lib/z1_async.zsh
     function slow { print -n x }
     async-task job slow
     async-run; async-wait
@@ -114,7 +114,7 @@ teardown() { z1_teardown; }
 }
 
 @test "registering requires a function that exists" {
-  z1_zsh 'source ${Z1:h}/lib/async.zsh
+  z1_zsh 'source ${Z1:h}/lib/z1_async.zsh
     async-task job nosuchfunction
     print "rc: $?"
     async-task job
@@ -127,7 +127,7 @@ teardown() { z1_teardown; }
 }
 
 @test "async-run is hooked to precmd once" {
-  z1_zsh 'source ${Z1:h}/lib/async.zsh
+  z1_zsh 'source ${Z1:h}/lib/z1_async.zsh
     function a { : }; function b { : }
     async-task one a
     async-task two b

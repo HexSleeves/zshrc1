@@ -163,7 +163,7 @@ setup_chars() {
   assert_line "leftover: no"
 }
 
-@test "the prompt runs vcs_info asynchronously when lib/async.zsh is there" {
+@test "the prompt runs vcs_info asynchronously when lib/z1_async.zsh is there" {
   z1_zsh 'source $Z1
     autoload -Uz promptinit && promptinit && prompt z1
     print "async: $(( $+functions[async-task] ))"

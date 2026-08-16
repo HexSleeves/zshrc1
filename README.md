@@ -281,6 +281,18 @@ As with `cache` and `skip`, one pattern turns them all on:
 zstyle ':z1:*' debug 'yes'
 ```
 
+### Libraries
+
+The optional pieces `z1` ships live in `lib/`, and are looked for in
+`$ZSH_CONFIG_DIR/lib` first, so dropping a `z1_autosuggest.zsh` or a `z1_async.zsh` of
+your own there replaces the bundled one. Neither is required: a lone `z1.zsh` with no
+`lib/` beside it works, minus autosuggestions and an async prompt.
+
+| File                 | What it does                                          |
+| -------------------- | ----------------------------------------------------- |
+| `z1_autosuggest.zsh` | Finishes the line from history as you type            |
+| `z1_async.zsh`       | Runs `vcs_info` off the prompt's critical path        |
+
 ### Prompt
 
 `z1` adds `$ZSH_CONFIG_DIR/prompts` and its own `prompts/` directory to `fpath`, yours

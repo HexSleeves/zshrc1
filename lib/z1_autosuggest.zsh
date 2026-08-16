@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
-# autosuggest - finish the line you are typing from what you typed before.
+# z1_autosuggest - finish the line you are typing from what you typed before.
 #
-#   source /path/to/lib/autosuggest.zsh
+#   source /path/to/lib/z1_autosuggest.zsh
 #   zstyle ':z1:editor' autosuggest-highlight 'fg=8'
 #   zstyle ':z1:editor' autosuggest-strategy 'my-suggester'
 #

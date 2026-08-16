@@ -1153,10 +1153,13 @@ fi
 # Autosuggest
 #
 
-# Finish the line you are typing from what you typed before. Leave it out with:
+# Finish the line you are typing from what you typed before. Yours wins over the
+# one z1 ships. Leave it out with:
 #   zstyle ':z1:autosuggest' skip 'yes'
-if ! zstyle -t ':z1:autosuggest' skip && [[ -e ${0:A:h}/lib/autosuggest.zsh ]]; then
-  source ${0:A:h}/lib/autosuggest.zsh
+if ! zstyle -t ':z1:autosuggest' skip; then
+  _z1_libs=($ZSH_CONFIG_DIR/lib/z1_autosuggest.zsh(N) ${0:A:h}/lib/z1_autosuggest.zsh(N))
+  (( $#_z1_libs )) && source $_z1_libs[1]
+  unset _z1_libs
 fi
 
 #

@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
-# async - run slow things off the prompt's critical path.
+# z1_async - run slow things off the prompt's critical path.
 #
-#   source /path/to/lib/async.zsh
+#   source /path/to/lib/z1_async.zsh
 #   function slow_thing { git status --short }
 #   async-task vcs slow_thing
 #   RPROMPT='$async_output[vcs]'
