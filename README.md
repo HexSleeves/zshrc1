@@ -40,6 +40,7 @@ Feel free to use it as-is, build off it, or fork it and make it entirely your ow
   magic, and quote magic
 - Up and Down search history by substring, multi-line commands included
 - Fish-style directory history: `prevd` and `nextd`, on Alt-Left and Alt-Right
+- Syntax highlighting as you type, where `zsh-patina` is installed
 - Clipboard helpers: `copyfile`, `copypath`, and Ctrl+X Ctrl+C to copy the line you are
   editing, with `pbcopy` and `pbpaste` filled in on systems that lack them
 - Optional Enter that extends an unfinished command instead of dropping to a PS2 prompt
@@ -125,6 +126,7 @@ before it reads any style of its own, so that one file is enough. `.zshrc` befor
 | `:z1:history`                | `savehist`         | `100000`                                   | Events kept in the history file                                   |
 | `:z1:homebrew`               | `cache`            | off                                        | Cache `brew shellenv` output rather than running it each startup  |
 | `:z1:homebrew`               | `skip`             | off                                        | Never run `brew shellenv`, for when you have run it yourself      |
+| `:z1:patina`                 | `skip`             | off                                        | Never activate `zsh-patina`, even where it is installed           |
 | `:z1:path`                   | `prepath`          | `~/{s,}bin ~/.local/{s,}bin`               | Entries kept at the front of `$path`                              |
 | `:z1:xdg-basedirs`           | `enable`           | on                                         | Put config, data, and cache in the XDG directories                |
 | `:z1:zfunctions`             | `skip`             | off                                        | Leave `$ZFUNCDIR` off `fpath` and autoload nothing from it        |
@@ -207,6 +209,10 @@ instead, and Ctrl-Left and Ctrl-Right always do.
 zstyle ':z1:history' savehist 500000
 zstyle ':z1:confd' directory "$ZSH_CONFIG_DIR/rc.d"
 ```
+
+Where [zsh-patina][zsh-patina] is installed, `z1` activates it, so the line is colored
+as you type. Activating is never cached, as patina's docs ask, and a re-source of `z1`
+leaves an already active patina alone rather than stacking its hooks.
 
 These caches are off by default because a cache hides a change until it expires, after
 20 hours. They share the style name `cache`, so one pattern turns them all on:
@@ -352,3 +358,4 @@ opinions and focused more on creating a better out-of-the-box Zsh starter config
 [ohmyzsh]: https://github.com/ohmyzsh/ohmyzsh
 [prezto]: https://github.com/sorin-ionescu/prezto
 [grml-zshrc]: https://github.com/grml/grml-etc-core/blob/master/etc/zsh/zshrc
+[zsh-patina]: https://github.com/michel-kraemer/zsh-patina

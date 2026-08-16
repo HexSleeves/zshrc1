@@ -1140,6 +1140,16 @@ function down-line-or-history-search() {
 zle -N down-line-or-history-search
 
 #
+# Syntax highlighting
+#
+
+# Color the line as you type. Not cached, per patina's docs.
+if (( $+commands[zsh-patina] && ! $+functions[zsh-patina] )) &&
+   ! zstyle -t ':z1:patina' skip; then
+  eval "$(zsh-patina activate)"
+fi
+
+#
 # Autosuggest
 #
 

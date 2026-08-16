@@ -14,6 +14,8 @@ typeset -gi expect=1
 : >$log
 
 cat >$ZDOTDIR/.zshrc <<'RC'
+# The probes below compare region_highlight exactly, so no other painters.
+zstyle ':z1:patina' skip 'yes'
 source $Z1
 # A scenario that needs a plugin loaded after z1, such as a competing syntax
 # highlighter, points $Z1_ZLE_RC at a file holding it.
